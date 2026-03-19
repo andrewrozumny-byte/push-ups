@@ -68,6 +68,7 @@ export default function HomePage() {
     Math.min(100, Math.round((pushupsToday / normGoal) * 100))
   );
   const participantsCount = users.length;
+  const hasUsers = users.length > 0;
 
   const fetchUsers = async () => {
     const controller = new AbortController();
@@ -152,11 +153,17 @@ export default function HomePage() {
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="text-sm font-semibold text-white">Учасники</div>
             <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-xs text-[#71717a]">
-              Учасники ({loading ? "…" : participantsCount})
+              Учасники ({participantsCount})
             </div>
           </div>
 
-          {loading ? (
+          {hasUsers ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {users.map((u) => (
+                <UserCard key={u.id} user={u} />
+              ))}
+            </div>
+          ) : loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
@@ -165,19 +172,13 @@ export default function HomePage() {
                 />
               ))}
             </div>
-          ) : users.length === 0 ? (
+          ) : (
             <div className="rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4 text-white/80 text-sm">
               Немає учасників. Додайте їх у{" "}
               <Link href="/admin" className="underline">
                 адмінці
               </Link>
               .
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {users.map((u) => (
-                <UserCard key={u.id} user={u} />
-              ))}
             </div>
           )}
         </section>

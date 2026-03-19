@@ -39,7 +39,7 @@ export function UserCard({ user }: UserCardProps) {
     <Link href={`/${user.slug}`} className={outer}>
       <div
         className={cn(
-          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4",
+          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4 min-h-[80px]",
           done
             ? "border-l-2 border-l-[#22c55e] shadow-[0_0_28px_rgba(34,197,94,0.35)]"
             : "border-l-2 border-l-transparent opacity-90"
@@ -47,10 +47,12 @@ export function UserCard({ user }: UserCardProps) {
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <div className="text-[40px] leading-none shrink-0">{user.emoji}</div>
+            <div className="text-[40px] leading-none shrink-0 text-white">
+              {user.emoji}
+            </div>
 
             <div className="min-w-0">
-              <div className="text-base sm:text-lg font-bold text-white truncate">
+              <div className="text-lg sm:text-lg font-bold text-white truncate">
                 {user.name}
               </div>
               <div className="mt-1 flex items-center gap-2 text-xs text-[#71717a]">
@@ -59,7 +61,7 @@ export function UserCard({ user }: UserCardProps) {
                     "inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold",
                     done
                       ? "border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e]"
-                      : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-[#71717a]"
+                      : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-white/70"
                   )}
                 >
                   {done ? "Відмітився ✅" : "⏳ Не відмітився"}
