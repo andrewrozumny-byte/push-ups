@@ -47,12 +47,38 @@ function getPool(): Pool {
 /**
  * Parameterized query helper.
  * Use it for all DB reads/writes.
+ * Retries on cold-start / transient upstream failures (e.g. Prisma Postgres free tier).
  */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<T>> {
-  return getPool().query<T>(text, params);
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+  const poolInstance = getPool();
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const client = await poolInstance.connect();
+      try {
+        const result = await client.query<T>(text, params);
+        return result;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error : new Error(String(error));
+      console.warn(`DB attempt ${i + 1} failed:`, error);
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 * Math.pow(2, i))
+        );
+      }
+    }
+  }
+
+  throw lastError ?? new Error("DB query failed after retries");
 }
 
 function toDate(value: unknown): Date {
