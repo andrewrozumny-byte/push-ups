@@ -99,19 +99,21 @@ export default function HomePage() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#22c55e] to-transparent" />
 
       <header className="px-4 pt-6 pb-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-[30px] sm:text-[34px] leading-[1.05] font-black tracking-tight">
+            <div className="text-2xl md:text-4xl leading-[1.05] font-black tracking-tight whitespace-nowrap">
               <span className="text-white mr-2">💪</span>
               <span className="bg-gradient-to-r from-[#22c55e] via-[#f97316] to-[#f59e0b] bg-clip-text text-transparent">
                 PUSH-UPS CREW
               </span>
             </div>
-            <div className="mt-1 text-sm text-[#71717a]">Отжуманія 💪</div>
+            <div className="mt-1 text-lg md:text-sm text-gray-400">
+              Отжуманія 💪
+            </div>
           </div>
 
-          <div className="shrink-0">
-            <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-xs text-[#71717a]">
+          <div className="shrink-0 mt-2 md:mt-0">
+            <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-sm md:text-xs text-gray-500">
               {formatTodayRuUkUkz(todayStr)}
             </div>
           </div>
