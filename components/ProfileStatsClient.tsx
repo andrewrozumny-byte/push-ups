@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { PenaltyStatus } from "@/lib/penalties";
 import { ProfileCheckinButton } from "@/components/ProfileCheckinButton";
+import { diffCalendarDays } from "@/lib/kyivDate";
 
 type ProfileStatsClientProps = {
   userId: string;
@@ -16,10 +17,6 @@ type ProfileStatsClientProps = {
   initialProgressPct: number | null;
 };
 
-function parseISOUTC(dateStr: string) {
-  return new Date(`${dateStr}T00:00:00.000Z`);
-}
-
 function computeBestStreak(checkins: Array<{ date: string }>): number {
   const unique = Array.from(new Set(checkins.map((c) => c.date))).sort();
   let best = 0;
@@ -30,10 +27,8 @@ function computeBestStreak(checkins: Array<{ date: string }>): number {
     if (!prev) {
       cur = 1;
     } else {
-      const prevDate = parseISOUTC(prev);
-      const dDate = parseISOUTC(d);
-      const diffDays = Math.round((dDate.getTime() - prevDate.getTime()) / 86400000);
-      cur = diffDays === 1 ? cur + 1 : 1;
+      const gap = diffCalendarDays(prev, d);
+      cur = gap === 1 ? cur + 1 : 1;
     }
     best = Math.max(best, cur);
     prev = d;

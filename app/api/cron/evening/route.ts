@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPushupsForDate, getUsers } from "@/lib/db";
+import { getPushupsForYmd, getUsers } from "@/lib/db";
+import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
 import {
   formatKyivDate,
   formatProgressBar,
@@ -85,17 +86,15 @@ export async function GET(request: NextRequest) {
         getMonthProgress(),
       ]);
 
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = getKyivDate(now);
     const eligibleNotNewCount = (await getUsers()).filter((u) => {
-      const createdStr = u.created_at.toISOString().slice(0, 10);
+      const createdStr = getKyivDate(u.created_at);
       return createdStr < todayStr;
     }).length;
 
     const allDone = eligibleNotNewCount > 0 && todayMissed.length === 0;
 
-    const tomorrow = new Date();
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    const tomorrowPushups = getPushupsForDate(tomorrow);
+    const tomorrowPushups = getPushupsForYmd(addCalendarDays(todayStr, 1));
 
     const progressBlock =
       `\n📊 <b>Загальний прогрес crew:</b>\n` +

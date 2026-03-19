@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCheckin, getCheckinByUserAndDate } from "@/lib/db";
+import { getKyivDate } from "@/lib/kyivDate";
 import { getRandomMotivator } from "@/lib/motivators";
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const userId = body?.userId as string | undefined;
-    const date = todayISO();
+    const date = getKyivDate();
 
     if (!userId) {
       return NextResponse.json(

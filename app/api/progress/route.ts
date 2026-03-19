@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCheckinsByUser, getUserById } from "@/lib/db";
 import { getPenaltyStatus } from "@/lib/penalties";
-
-function isoDateUTC(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -25,14 +22,10 @@ export async function GET(request: NextRequest) {
       getPenaltyStatus(userId, user.created_at),
     ]);
 
-    const todayStr = isoDateUTC(new Date());
-    const createdStr = isoDateUTC(user.created_at);
+    const todayStr = getKyivDate();
+    const createdStr = getKyivDate(user.created_at);
 
-    // Inclusive count: created day counts as "day 1", and today counts too.
-    const createdUTC = new Date(`${createdStr}T00:00:00.000Z`);
-    const todayUTC = new Date(`${todayStr}T00:00:00.000Z`);
-    const daysSinceRegistrationRaw =
-      Math.floor((todayUTC.getTime() - createdUTC.getTime()) / 86400000) + 1;
+    const daysSinceRegistrationRaw = diffCalendarDays(createdStr, todayStr) + 1;
     const daysSinceRegistration = Number.isFinite(daysSinceRegistrationRaw)
       ? Math.max(1, daysSinceRegistrationRaw)
       : 1;

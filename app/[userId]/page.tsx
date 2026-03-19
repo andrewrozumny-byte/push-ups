@@ -8,16 +8,9 @@ import {
 } from "@/lib/db";
 
 import { getPenaltyStatus as getPenalty } from "@/lib/penalties";
+import { diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
 
 export const dynamic = "force-dynamic";
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function parseISOUTC(dateStr: string) {
-  return new Date(`${dateStr}T00:00:00.000Z`);
-}
 
 export default async function ProfilePage({
   params,
@@ -34,7 +27,7 @@ export default async function ProfilePage({
     getPenalty(user.id, user.created_at),
   ]);
 
-  const todayStr = todayISO();
+  const todayStr = getKyivDate();
   const todayCheckin = checkins.find((c) => c.date === todayStr) ?? null;
   const checkinByDate: Record<string, number> = {};
   for (const c of checkins) checkinByDate[c.date] = c.pushups_count;
@@ -48,10 +41,8 @@ export default async function ProfilePage({
       if (!prev) {
         cur = 1;
       } else {
-        const prevDate = parseISOUTC(prev);
-        const dDate = parseISOUTC(d);
-        const diffDays = Math.round((dDate.getTime() - prevDate.getTime()) / 86400000);
-        cur = diffDays === 1 ? cur + 1 : 1;
+        const gap = diffCalendarDays(prev, d);
+        cur = gap === 1 ? cur + 1 : 1;
       }
       best = Math.max(best, cur);
       prev = d;
@@ -61,12 +52,9 @@ export default async function ProfilePage({
 
   const totalDays = checkins.length;
 
-  const todayUTC = parseISOUTC(todayStr);
-  const createdStr = user.created_at.toISOString().slice(0, 10);
-  const createdUTC = parseISOUTC(createdStr);
+  const createdStr = getKyivDate(user.created_at);
 
-  const daysSinceRegistrationRaw =
-    Math.floor((todayUTC.getTime() - createdUTC.getTime()) / 86400000) + 1;
+  const daysSinceRegistrationRaw = diffCalendarDays(createdStr, todayStr) + 1;
   const daysSinceRegistration = Number.isFinite(daysSinceRegistrationRaw)
     ? Math.max(1, daysSinceRegistrationRaw)
     : 1;

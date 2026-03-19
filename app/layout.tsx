@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { PhoneFrameShell } from "@/components/PhoneFrameShell";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
@@ -32,7 +33,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <PhoneFrameShell>{children}</PhoneFrameShell>
       </body>
     </html>
   );

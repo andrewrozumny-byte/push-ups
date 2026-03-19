@@ -1,5 +1,13 @@
 import { Pool } from "pg";
 import type { QueryResult, QueryResultRow } from "pg";
+import { diffCalendarDays, getKyivDate, pushupsStartYmd } from "./kyivDate";
+
+export {
+  addCalendarDays,
+  diffCalendarDays,
+  getKyivDate,
+  pushupsStartYmd,
+} from "./kyivDate";
 
 const DEFAULT_START_DATE = "2025-01-20";
 
@@ -90,16 +98,16 @@ function toDate(value: unknown): Date {
   throw new Error("Invalid date value returned from DB");
 }
 
-/** Норма отжиманий на дату: 25 + количество дней с даты старта */
+/** Норма отжиманий для календарного дня YYYY-MM-DD (логіка Kyiv / дата старту з env). */
+export function getPushupsForYmd(ymd: string): number {
+  const diff = diffCalendarDays(pushupsStartYmd(), ymd);
+  if (diff < 0) return PUSHUPS_START_COUNT;
+  return PUSHUPS_START_COUNT + diff;
+}
+
+/** Норма отжиманий на дату: 25 + дні від дати старту за календарем Kyiv. */
 export function getPushupsForDate(date: Date): number {
-  const start = new Date(PUSHUPS_START_DATE);
-  start.setHours(0, 0, 0, 0);
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const diffTime = d.getTime() - start.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return PUSHUPS_START_COUNT;
-  return PUSHUPS_START_COUNT + diffDays;
+  return getPushupsForYmd(getKyivDate(date));
 }
 
 /** Инициализация таблиц (создание если не существуют) */
@@ -353,8 +361,7 @@ export async function createCheckin(
   userId: string,
   dateStr: string
 ): Promise<Checkin> {
-  const date = new Date(dateStr + "T12:00:00");
-  const pushups_count = getPushupsForDate(date);
+  const pushups_count = getPushupsForYmd(dateStr);
 
   const res = await query<CheckinRow>(
     `INSERT INTO checkins (user_id, date, pushups_count)

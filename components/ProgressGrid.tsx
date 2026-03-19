@@ -2,6 +2,12 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import {
+  addCalendarDays,
+  getKyivDate,
+  KYIV_TZ,
+  utcInstantForKyivYmd,
+} from "@/lib/kyivDate";
 
 type DayCell = {
   date: string;
@@ -16,8 +22,12 @@ type ProgressGridProps = {
 };
 
 function formatDay(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("uk-UA", { day: "numeric", month: "short" });
+  const t = utcInstantForKyivYmd(dateStr);
+  return t.toLocaleDateString("uk-UA", {
+    timeZone: KYIV_TZ,
+    day: "numeric",
+    month: "short",
+  });
 }
 
 export function ProgressGrid({
@@ -32,11 +42,9 @@ export function ProgressGrid({
 
   const cells: DayCell[] = useMemo(() => {
     const result: DayCell[] = [];
-    const today = new Date();
+    const todayYmd = getKyivDate();
     for (let i = daysToShow - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const date = d.toISOString().slice(0, 10);
+      const date = addCalendarDays(todayYmd, -(daysToShow - 1 - i));
       result.push({
         date,
         label: formatDay(date),

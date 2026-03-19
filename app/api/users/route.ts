@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createUser,
   deleteUser,
+  diffCalendarDays,
   getCheckinsByUser,
-  PUSHUPS_START_COUNT,
-  PUSHUPS_START_DATE,
+  getKyivDate,
+  getPushupsForDate,
   getUsers,
 } from "@/lib/db";
 import { getPenaltyStatus } from "@/lib/penalties";
@@ -24,10 +25,6 @@ function slugFromName(name: string): string {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getAdminPassword(request: NextRequest): string {
   return (request.headers.get("x-admin-password") ?? "").trim();
 }
@@ -41,14 +38,8 @@ function requireAdmin(request: NextRequest): string | null {
 
 export async function GET() {
   try {
-    const todayStr = todayISO();
-    const startStr = PUSHUPS_START_DATE.toISOString().slice(0, 10);
-
-    const todayUTC = new Date(`${todayStr}T00:00:00.000Z`);
-    const startUTC = new Date(`${startStr}T00:00:00.000Z`);
-    const diffMs = todayUTC.getTime() - startUTC.getTime();
-    const diffDays = diffMs < 0 ? 0 : Math.floor(diffMs / 86400000);
-    const pushupsToday = PUSHUPS_START_COUNT + diffDays;
+    const todayStr = getKyivDate();
+    const pushupsToday = getPushupsForDate(new Date());
 
     const users = await getUsers();
 
@@ -57,11 +48,9 @@ export async function GET() {
         const checkins = await getCheckinsByUser(u.id);
         const checkedInToday = checkins.some((c) => c.date === todayStr);
 
-        const createdStr = u.created_at.toISOString().slice(0, 10);
-        const createdUTC = new Date(`${createdStr}T00:00:00.000Z`);
+        const createdStr = getKyivDate(u.created_at);
         const daysSinceRegistrationRaw =
-          Math.floor((todayUTC.getTime() - createdUTC.getTime()) / 86400000) +
-          1;
+          diffCalendarDays(createdStr, todayStr) + 1;
         const daysSinceRegistration = Number.isFinite(
           daysSinceRegistrationRaw
         )

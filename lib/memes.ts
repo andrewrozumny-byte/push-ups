@@ -1,7 +1,6 @@
 import { getDayIndex } from "./daily";
 
-// Auto-generated - do not edit manually
-// Source: ./public/memes (sorted)
+// Synced with ./public/memes (sorted). Regenerate: ls public/memes | sort
 export const MEMES: string[] = [
   "meme1.png",
   "meme2.jpg",

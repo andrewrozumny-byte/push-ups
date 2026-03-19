@@ -1,4 +1,9 @@
 import { getCheckinsByUser, getPushupsForDate, getUsers, type User } from "@/lib/db";
+import {
+  addCalendarDays,
+  diffCalendarDays,
+  getKyivDate,
+} from "@/lib/kyivDate";
 
 export type TelegramUserLabel = {
   userId: string;
@@ -8,25 +13,13 @@ export type TelegramUserLabel = {
   telegram_username: string | null;
 };
 
-function isoDateUTC(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function addDaysUTC(date: Date, delta: number): Date {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d;
-}
-
 function maxDayStr(a: string, b: string) {
   return a >= b ? a : b;
 }
 
 function daysInclusive(fromStr: string, toStr: string): number {
-  const from = new Date(`${fromStr}T00:00:00.000Z`);
-  const to = new Date(`${toStr}T00:00:00.000Z`);
-  if (to.getTime() < from.getTime()) return 0;
-  return Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+  if (toStr < fromStr) return 0;
+  return diffCalendarDays(fromStr, toStr) + 1;
 }
 
 /** ASCII-style bar for Telegram (only █ and ░ — avoids box-drawing glyphs that render as □). */
@@ -51,20 +44,19 @@ function toLabel(user: User): TelegramUserLabel {
 }
 
 function createdBeforeOrOnDay(user: User, dayStr: string) {
-  const createdStr = isoDateUTC(user.created_at);
+  const createdStr = getKyivDate(user.created_at);
   return createdStr <= dayStr;
 }
 
 function createdBeforeDayStrict(user: User, dayStr: string) {
-  const createdStr = isoDateUTC(user.created_at);
+  const createdStr = getKyivDate(user.created_at);
   return createdStr < dayStr;
 }
 
 export async function getTodayCheckins(): Promise<
   Array<TelegramUserLabel & { pushups: number }>
 > {
-  const today = new Date();
-  const todayStr = isoDateUTC(today);
+  const todayStr = getKyivDate();
 
   const users = await getUsers();
   const results = await Promise.all(
@@ -80,7 +72,7 @@ export async function getTodayCheckins(): Promise<
 }
 
 export async function getYesterdayMissed(): Promise<TelegramUserLabel[]> {
-  const yesterdayStr = isoDateUTC(addDaysUTC(new Date(), -1));
+  const yesterdayStr = addCalendarDays(getKyivDate(), -1);
 
   const users = await getUsers();
   const results = await Promise.all(
@@ -97,7 +89,7 @@ export async function getYesterdayMissed(): Promise<TelegramUserLabel[]> {
 }
 
 export async function getTodayMissed(): Promise<TelegramUserLabel[]> {
-  const todayStr = isoDateUTC(new Date());
+  const todayStr = getKyivDate();
 
   const users = await getUsers();
   const results = await Promise.all(
@@ -122,16 +114,15 @@ export async function getConsecutiveMisses(userId: string): Promise<number> {
   const checkins = await getCheckinsByUser(userId);
   const checkinDates = new Set(checkins.map((c) => c.date));
 
-  const todayStr = isoDateUTC(new Date());
-  const createdStr = isoDateUTC(user.created_at);
+  const todayStr = getKyivDate();
+  const createdStr = getKyivDate(user.created_at);
 
   let missed = 0;
   let cursor = todayStr;
   while (cursor >= createdStr) {
     if (checkinDates.has(cursor)) break;
     missed++;
-    const d = new Date(`${cursor}T00:00:00.000Z`);
-    cursor = isoDateUTC(addDaysUTC(d, -1));
+    cursor = addCalendarDays(cursor, -1);
   }
   return missed;
 }
@@ -144,7 +135,7 @@ async function computeProgress(fromStr: string, toStr: string): Promise<number> 
 
   // sequential to reduce DB pressure
   for (const user of users) {
-    const createdStr = isoDateUTC(user.created_at);
+    const createdStr = getKyivDate(user.created_at);
     const eligibleStart = maxDayStr(createdStr, fromStr);
     const eligibleDays = daysInclusive(eligibleStart, toStr);
     possible += eligibleDays;
@@ -159,14 +150,14 @@ async function computeProgress(fromStr: string, toStr: string): Promise<number> 
 }
 
 export async function getWeekProgress(): Promise<number> {
-  const todayStr = isoDateUTC(new Date());
-  const fromStr = isoDateUTC(addDaysUTC(new Date(`${todayStr}T00:00:00.000Z`), -6));
+  const todayStr = getKyivDate();
+  const fromStr = addCalendarDays(todayStr, -6);
   return computeProgress(fromStr, todayStr);
 }
 
 export async function getMonthProgress(): Promise<number> {
-  const todayStr = isoDateUTC(new Date());
-  const fromStr = isoDateUTC(addDaysUTC(new Date(`${todayStr}T00:00:00.000Z`), -29));
+  const todayStr = getKyivDate();
+  const fromStr = addCalendarDays(todayStr, -29);
   return computeProgress(fromStr, todayStr);
 }
 

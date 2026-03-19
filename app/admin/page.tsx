@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
 
 type AdminUser = {
   id: string;
@@ -27,7 +28,7 @@ function isCreatedToday(createdAt: string | Date | null | undefined, todayStr: s
   if (!createdAt) return false;
   const d = typeof createdAt === "string" ? new Date(createdAt) : createdAt;
   if (Number.isNaN(d.getTime())) return false;
-  return d.toISOString().slice(0, 10) === todayStr;
+  return getKyivDate(d) === todayStr;
 }
 
 function getAppUrl(): string {
@@ -414,11 +415,8 @@ export default function AdminPage() {
     try {
       type ProgressCheckin = { date: string; pushups_count: number };
 
-      const today = new Date().toISOString().slice(0, 10);
-      const todayUTC = new Date(`${today}T00:00:00.000Z`);
-      const start = new Date(todayUTC);
-      start.setUTCDate(start.getUTCDate() - 6);
-      const startStr = start.toISOString().slice(0, 10);
+      const today = getKyivDate();
+      const startStr = addCalendarDays(today, -6);
 
       const progressPromises = users.map(async (u) => {
         const res = await fetch(`/api/progress?userId=${u.id}`);

@@ -39,73 +39,69 @@ export function UserCard({ user }: UserCardProps) {
     <Link href={`/${user.slug}`} className={outer}>
       <div
         className={cn(
-          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4 min-h-[80px]",
+          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-3 min-h-[80px]",
           done
             ? "border-l-2 border-l-[#22c55e] shadow-[0_0_28px_rgba(34,197,94,0.35)]"
             : "border-l-2 border-l-transparent opacity-90"
         )}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="text-[40px] leading-none shrink-0 text-white">
-              {user.emoji}
-            </div>
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center text-[28px] leading-none"
+            aria-hidden
+          >
+            {user.emoji}
+          </div>
 
-            <div className="min-w-0">
-              <div className="text-lg sm:text-lg font-bold text-white truncate">
-                {user.name}
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-xs text-[#71717a]">
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold",
-                    done
-                      ? "border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e]"
-                      : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-white/70"
-                  )}
-                >
-                  {done ? "Відмітився ✅" : "⏳ Не відмітився"}
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            <p className="text-base font-bold text-white truncate">{user.name}</p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                  done
+                    ? "border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e]"
+                    : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-white/80"
+                )}
+              >
+                {done ? "Відмітився ✅" : "⏳ Не відмітився"}
+              </span>
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-2 py-0.5 text-xs font-extrabold text-[#f97316]">
+                🔥 {user.streak}
+              </span>
+              {user.penaltyLevel > 0 && (
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-[#ef4444]/30 bg-[#ef4444]/10 px-2 py-0.5 text-xs font-extrabold text-[#ef4444]">
+                  ⚠️ {user.penaltyLevel}
                 </span>
-              </div>
+              )}
+            </div>
+
+            <div className="mt-1 flex flex-col gap-1">
+              {progressPct == null ? (
+                <>
+                  <p className="text-xs text-gray-500">Прогрес</p>
+                  <p className="text-xs text-green-400">Новий учасник 🌱</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-gray-500">Прогрес</span>
+                    <span className="shrink-0 font-medium text-white/80">{progress}%</span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#1e1e1e]">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        done ? "bg-[#22c55e]" : "bg-[#22c55e]/70"
+                      )}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
-
-          <div className="flex flex-col items-end gap-2">
-            <div className="rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-3 py-1 text-xs font-extrabold text-[#f97316]">
-              🔥 {user.streak}
-            </div>
-
-            {user.penaltyLevel > 0 && (
-              <div className="rounded-full border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-1 text-xs font-extrabold text-[#ef4444]">
-                ⚠️ Рівень {user.penaltyLevel}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          {progressPct == null ? (
-            <div className="flex items-center justify-between text-xs text-[#71717a]">
-              <span className="text-white/70">Прогрес</span>
-              <span className="text-white/70">Новий учасник 🌱</span>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between text-xs text-[#71717a]">
-                <span className="text-white/70">Прогрес</span>
-                <span className="text-white/70">{progress}%</span>
-              </div>
-              <div className="mt-2 h-2.5 w-full rounded-full bg-[#1e1e1e] overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    done ? "bg-[#22c55e]" : "bg-[#22c55e]/70"
-                  )}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </>
-          )}
         </div>
       </div>
     </Link>

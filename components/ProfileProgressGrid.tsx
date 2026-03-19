@@ -1,38 +1,23 @@
 import { cn } from "@/lib/utils";
-import { getPushupsForDate } from "@/lib/db";
+import { getPushupsForYmd } from "@/lib/db";
+import {
+  addCalendarDays,
+  endOfWeekSundayKyiv,
+  KYIV_TZ,
+  startOfWeekMondayKyiv,
+  utcInstantForKyivYmd,
+} from "@/lib/kyivDate";
 
 type ProfileProgressGridProps = {
   checkinByDate: Record<string, number>;
-  todayStr: string; // YYYY-MM-DD
+  todayStr: string; // YYYY-MM-DD (Kyiv)
   days: number; // 30
 };
 
-function isoUTC(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function addDaysUTC(date: Date, delta: number) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d;
-}
-
-function startOfMondayUTC(date: Date) {
-  const day = date.getUTCDay(); // 0..6 (Sun..Sat)
-  const mondayIndex = (day + 6) % 7; // Mon => 0
-  return addDaysUTC(date, -mondayIndex);
-}
-
-function endOfSundayUTC(date: Date) {
-  const day = date.getUTCDay(); // 0..6
-  const mondayIndex = (day + 6) % 7;
-  const daysToSunday = 6 - mondayIndex;
-  return addDaysUTC(date, daysToSunday);
-}
-
 function formatDateUk(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("uk-UA", {
+  const t = utcInstantForKyivYmd(dateStr);
+  return t.toLocaleDateString("uk-UA", {
+    timeZone: KYIV_TZ,
     day: "2-digit",
     month: "short",
   });
@@ -43,22 +28,20 @@ export function ProfileProgressGrid({
   todayStr,
   days,
 }: ProfileProgressGridProps) {
-  const today = new Date(`${todayStr}T00:00:00.000Z`);
-  const pastStart = addDaysUTC(today, -(days - 1));
-  const pastStartStr = isoUTC(pastStart);
+  const pastStartStr = addCalendarDays(todayStr, -(days - 1));
 
-  const rangeStart = startOfMondayUTC(pastStart);
-  const rangeEnd = endOfSundayUTC(today);
+  const rangeStart = startOfWeekMondayKyiv(pastStartStr);
+  const rangeEnd = endOfWeekSundayKyiv(todayStr);
 
   const weeks: string[][] = [];
-  let cursor = new Date(rangeStart);
+  let cursor = rangeStart;
   while (cursor <= rangeEnd) {
     const week: string[] = [];
     for (let i = 0; i < 7; i++) {
-      week.push(isoUTC(addDaysUTC(cursor, i)));
+      week.push(addCalendarDays(cursor, i));
     }
     weeks.push(week);
-    cursor = addDaysUTC(cursor, 7);
+    cursor = addCalendarDays(cursor, 7);
   }
 
   return (
@@ -88,9 +71,7 @@ export function ProfileProgressGrid({
               );
               const isFuture = dateStr > todayStr;
 
-              const expected = getPushupsForDate(
-                new Date(`${dateStr}T00:00:00.000Z`)
-              );
+              const expected = getPushupsForYmd(dateStr);
 
               const title = `${formatDateUk(dateStr)} — ${expected} віджимань`;
 
@@ -118,4 +99,3 @@ export function ProfileProgressGrid({
     </div>
   );
 }
-

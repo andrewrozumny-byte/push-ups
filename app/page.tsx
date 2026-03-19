@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DailyMotivator } from "@/components/DailyMotivator";
 import { UserCard } from "@/components/UserCard";
+import {
+  formatKyivYmdLongUk,
+  getKyivDate,
+  getPushupsNormForYmd,
+} from "@/lib/kyivDate";
 
 type DashboardUser = {
   id: string;
@@ -20,45 +25,23 @@ type DashboardUser = {
 };
 
 const CREW_START_COUNT = 25;
-const DEFAULT_START_DATE = "2025-01-20";
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatTodayRuUkUkz(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("uk-UA", { day: "2-digit", month: "long", year: "numeric" });
-}
-
-function getPushupsTodayClientUTC(dateStr: string): number {
+function getPushupsTodayClientKyiv(): number {
   // Optional override: set NEXT_PUBLIC_TODAY_NORM=26 to force today's norm (e.g. in .env.local)
   const override = process.env.NEXT_PUBLIC_TODAY_NORM;
   if (override != null && override !== "") {
     const n = Number(override);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  const startDate = (process.env.NEXT_PUBLIC_START_DATE ?? DEFAULT_START_DATE).replace(/_/g, "-");
-  const start = new Date(`${startDate}T00:00:00.000Z`);
-  const today = new Date(`${dateStr}T00:00:00.000Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) {
-    return CREW_START_COUNT;
-  }
-  const diffMs = today.getTime() - start.getTime();
-  const diffDays = diffMs < 0 ? 0 : Math.floor(diffMs / 86400000);
-  const value = CREW_START_COUNT + diffDays;
-  return Number.isFinite(value) ? value : CREW_START_COUNT;
+  return getPushupsNormForYmd(getKyivDate(), CREW_START_COUNT);
 }
 
 export default function HomePage() {
   const [users, setUsers] = useState<DashboardUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const todayStr = useMemo(() => todayISO(), []);
+  const todayStr = useMemo(() => getKyivDate(), []);
 
-  const pushupsTodayFallback = useMemo(
-    () => getPushupsTodayClientUTC(todayStr),
-    [todayStr]
-  );
+  const pushupsTodayFallback = useMemo(() => getPushupsTodayClientKyiv(), []);
 
   const pushupsTodayRaw = users[0]?.pushupsToday ?? pushupsTodayFallback;
   const pushupsToday = Number.isFinite(pushupsTodayRaw) ? pushupsTodayRaw : CREW_START_COUNT;
@@ -102,8 +85,9 @@ export default function HomePage() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#22c55e] to-transparent" />
 
       <header className="px-4 pt-6 pb-4">
-        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-          <div className="min-w-0">
+        {/* Always column: avoids date sitting beside title in narrow phone frame (md: still matches viewport ≥768) */}
+        <div className="flex flex-col items-start gap-3">
+          <div className="min-w-0 w-full">
             <div className="text-2xl md:text-4xl leading-[1.05] font-black tracking-tight whitespace-nowrap">
               <span className="text-white mr-2">💪</span>
               <span className="bg-gradient-to-r from-[#22c55e] via-[#f97316] to-[#f59e0b] bg-clip-text text-transparent">
@@ -115,9 +99,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="shrink-0 mt-2 md:mt-0">
+          <div className="shrink-0 w-full static">
             <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-sm md:text-xs text-gray-500">
-              {formatTodayRuUkUkz(todayStr)}
+              {formatKyivYmdLongUk(todayStr)}
             </div>
           </div>
         </div>
@@ -163,13 +147,13 @@ export default function HomePage() {
           </div>
 
           {hasUsers ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {users.map((u) => (
                 <UserCard key={u.id} user={u} />
               ))}
             </div>
           ) : loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}

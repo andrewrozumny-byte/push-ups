@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsers } from "@/lib/db";
+import { getKyivDate } from "@/lib/kyivDate";
 import {
   formatKyivDate,
   getTodayCheckins,
@@ -70,9 +71,9 @@ export async function GET(request: NextRequest) {
       getTodayMissed(),
     ]);
 
+    const todayStr = getKyivDate(today);
     const eligibleNotNewCount = (await getUsers()).filter((u) => {
-      const createdStr = u.created_at.toISOString().slice(0, 10);
-      const todayStr = today.toISOString().slice(0, 10);
+      const createdStr = getKyivDate(u.created_at);
       return createdStr < todayStr;
     }).length;
 
