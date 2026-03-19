@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { Pool } from "pg";
 import type { QueryResult, QueryResultRow } from "pg";
 import { diffCalendarDays, getKyivDate, pushupsStartYmd } from "./kyivDate";
@@ -132,6 +133,11 @@ export async function initDb() {
   `);
 
   await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS checkin_token VARCHAR(64)
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS checkins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -155,6 +161,7 @@ type UserRow = {
   slug: string;
   telegram_username: unknown;
   created_at: unknown;
+  checkin_token?: unknown;
 };
 
 type CheckinRow = {
@@ -235,21 +242,90 @@ export async function getUserBySlug(slug: string): Promise<User | null> {
   };
 }
 
+/**
+ * Magic-link auth: slug + hex token. Uses SHA-256 compare of UTF-8 bytes (constant length for hex).
+ */
+export async function getUserBySlugAndToken(
+  slug: string,
+  token: string
+): Promise<User | null> {
+  const trimmedSlug = slug?.trim();
+  const trimmedToken = token?.trim();
+  if (!trimmedSlug || !trimmedToken) return null;
+
+  const res = await query<UserRow>(
+    `SELECT id, name, emoji, slug, telegram_username, created_at, checkin_token
+     FROM users WHERE slug = $1`,
+    [trimmedSlug]
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+
+  const stored =
+    row.checkin_token != null ? String(row.checkin_token).trim() : "";
+  if (!stored || stored.length !== trimmedToken.length) return null;
+
+  let a: Buffer;
+  let b: Buffer;
+  try {
+    a = Buffer.from(stored, "hex");
+    b = Buffer.from(trimmedToken, "hex");
+  } catch {
+    return null;
+  }
+  if (a.length !== b.length || a.length !== 32 || !timingSafeEqual(a, b)) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: row.name,
+    emoji: row.emoji,
+    slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
+    created_at: toDate(row.created_at),
+  };
+}
+
+export type UserWithCheckinToken = User & { checkin_token: string | null };
+
+/** For server/cron only — includes magic link token (never expose on public dashboard API). */
+export async function getUsersWithCheckinTokens(): Promise<UserWithCheckinToken[]> {
+  const res = await query<UserRow>(
+    `SELECT id, name, emoji, slug, telegram_username, created_at, checkin_token
+     FROM users
+     ORDER BY name`
+  );
+  return res.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    emoji: row.emoji,
+    slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
+    created_at: toDate(row.created_at),
+    checkin_token:
+      row.checkin_token != null ? String(row.checkin_token) : null,
+  }));
+}
+
 export async function createUser(data: {
   name: string;
   emoji?: string;
   slug: string;
   telegram_username?: string | null;
+  checkin_token: string;
 }): Promise<User> {
   const emoji = data.emoji ?? "💪";
   const telegram_username =
     (data.telegram_username ?? null)?.toString().trim().replace(/^@/, "") ??
     null;
   const res = await query<UserRow>(
-    `INSERT INTO users (name, emoji, slug, telegram_username)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (name, emoji, slug, telegram_username, checkin_token)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id, name, emoji, slug, telegram_username, created_at`,
-    [data.name, emoji, data.slug, telegram_username]
+    [data.name, emoji, data.slug, telegram_username, data.checkin_token]
   );
   const row = res.rows[0];
   if (!row) {

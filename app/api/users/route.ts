@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   createUser,
@@ -126,7 +127,14 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: "Потрібне ім'я" }, { status: 400 });
     if (!slug) return NextResponse.json({ error: "Вкажіть slug або ім'я латиницею" }, { status: 400 });
 
-    const user = await createUser({ name, slug, emoji, telegram_username });
+    const checkin_token = randomBytes(32).toString("hex");
+    const user = await createUser({
+      name,
+      slug,
+      emoji,
+      telegram_username,
+      checkin_token,
+    });
     return NextResponse.json(user, { headers: NO_STORE_HEADERS });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося створити учасника";

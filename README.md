@@ -50,6 +50,13 @@ npm run dev
 
 Він створить таблиці `users` і `checkins`.
 
+### Magic links (Telegram «Відмітитись»)
+
+- У кожного учасника є секретний `checkin_token` у БД (генерується при створенні).
+- Ранковий cron шле в чат inline-кнопки з посиланням `/magic/[slug]?token=...` (потрібен **`NEXT_PUBLIC_APP_URL`** у Vercel env).
+- Для **вже існуючих** користувачів без токена один раз викличте (з заголовком `x-admin-password`):
+  - `GET /api/admin/generate-tokens`
+
 ### Додати учасників
 
 - Перейдіть на:

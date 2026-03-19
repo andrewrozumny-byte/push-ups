@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPushupsForDate } from "@/lib/db";
+import { getPushupsForDate, getUsersWithCheckinTokens } from "@/lib/db";
 import {
   formatKyivDate,
   getYesterdayMissed,
@@ -21,7 +21,11 @@ async function requireCronAuth(request: NextRequest): Promise<boolean> {
   return !!adminPassword && providedAdmin === adminPassword;
 }
 
-async function sendTelegramMessage(text: string) {
+type InlineKeyboard = {
+  inline_keyboard: Array<Array<{ text: string; url: string }>>;
+};
+
+async function sendTelegramMessage(text: string, replyMarkup?: InlineKeyboard) {
   const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
   const chatId = process.env.TELEGRAM_CHAT_ID ?? "";
 
@@ -29,15 +33,23 @@ async function sendTelegramMessage(text: string) {
     throw new Error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not set");
   }
 
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  };
+  if (
+    replyMarkup?.inline_keyboard &&
+    replyMarkup.inline_keyboard.length > 0
+  ) {
+    payload.reply_markup = replyMarkup;
+  }
+
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -64,6 +76,25 @@ export async function GET(request: NextRequest) {
 
     const missedYesterday = await getYesterdayMissed();
 
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+    const users = await getUsersWithCheckinTokens();
+    const inline_keyboard =
+      baseUrl.length > 0
+        ? users
+            .filter((u) => u.checkin_token)
+            .map((user) => {
+              const label = `${user.emoji} ${user.name} — Відмітитись! 💪`;
+              const text =
+                label.length > 64 ? `${label.slice(0, 61)}…` : label;
+              return [
+                {
+                  text,
+                  url: `${baseUrl}/magic/${encodeURIComponent(user.slug)}?token=${encodeURIComponent(user.checkin_token!)}`,
+                },
+              ];
+            })
+        : [];
+
     const missedBlock =
       missedYesterday.length > 0
         ? `\n😬 <b>Вчора не відмітились:</b>\n${buildBulletList(missedYesterday)}`
@@ -77,7 +108,7 @@ export async function GET(request: NextRequest) {
       `${missedBlock}\n\n` +
       `Погнали, братове! 🔥`;
 
-    await sendTelegramMessage(text);
+    await sendTelegramMessage(text, { inline_keyboard });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Помилка відправки";
