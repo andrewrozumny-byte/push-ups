@@ -1,5 +1,8 @@
 import { diffCalendarDays, getKyivDate } from "./kyivDate";
 
+/** Re-export: Kyiv calendar “today” for stats / check-ins (resets at Kyiv midnight). */
+export { getKyivDate } from "./kyivDate";
+
 /**
  * Shared calendar index for daily meme + motivator (Kyiv “today”).
  * Increments by 1 each Kyiv calendar day (e.g. 19 Mar vs 20 Mar → different index).

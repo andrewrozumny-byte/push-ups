@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import { getKyivDate } from "@/lib/daily";
+import { addCalendarDays } from "@/lib/kyivDate";
 
 type AdminUser = {
   id: string;
@@ -836,32 +837,49 @@ export default function AdminPage() {
             {statsLoading ? (
               <div className="text-sm text-white/80">Рахуємо...</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3">
-                  <div className="text-xs text-white">Всього відміток</div>
-                  <div className="mt-1 text-2xl font-black text-white">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-4 border-b border-[#1e1e1e]/80 pb-3">
+                  <span className="shrink-0 text-sm text-gray-400">
+                    Всього відміток
+                  </span>
+                  <span className="text-right text-sm font-bold text-white tabular-nums">
                     {totalCheckinsResolved}
-                  </div>
+                  </span>
                 </div>
 
-                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3">
-                  <div className="text-xs text-white">Найкращий (тиждень)</div>
-                  <div className="mt-1 text-lg font-black text-white">
-                    {bestWeek ? `${bestWeek.emoji} ${bestWeek.name}` : "Немає даних"}
-                  </div>
+                <div className="flex items-start justify-between gap-4 border-b border-[#1e1e1e]/80 pb-3">
+                  <span className="shrink-0 text-sm text-gray-400">
+                    Найкращий тижня
+                  </span>
+                  <span className="min-w-0 text-right text-sm font-bold text-white">
+                    {bestWeek
+                      ? `${bestWeek.emoji} ${bestWeek.name}`
+                      : "Немає даних"}
+                  </span>
                 </div>
 
-                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3 md:col-span-1">
-                  <div className="text-xs text-white">Не віджався сьогодні</div>
-                  <div className="mt-2 max-h-[200px] space-y-1 overflow-y-auto text-sm pr-1 [scrollbar-width:thin]">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="shrink-0 text-sm text-gray-400">
+                    Не відмітились сьогодні
+                  </span>
+                  <div className="min-w-0 max-h-[200px] flex-1 overflow-y-auto text-right text-sm font-bold text-white [scrollbar-width:thin]">
                     {whoMissedToday.length === 0 ? (
-                      <div className="text-white/70">Ніхто 😄</div>
+                      <span className="font-bold text-white/70">Ніхто 😄</span>
                     ) : (
-                      whoMissedToday.map((u) => (
-                        <div key={u.id}>
-                          {u.emoji} {u.name}
-                        </div>
-                      ))
+                      (() => {
+                        const maxShow = 4;
+                        const shown = whoMissedToday.slice(0, maxShow);
+                        const rest = whoMissedToday.length - shown.length;
+                        const names = shown.map((u) => u.name).join(", ");
+                        const more =
+                          rest > 0 ? ` +${rest} більше` : "";
+                        return (
+                          <span className="break-words">
+                            {names}
+                            {more}
+                          </span>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
