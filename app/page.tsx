@@ -27,9 +27,9 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b px-4 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Push-ups Tracker</h1>
+        <h1 className="text-xl font-semibold">Трекер віджимань</h1>
         <Link href="/admin" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          Админка
+          Адмінка
         </Link>
       </header>
 
@@ -37,12 +37,12 @@ export default async function HomePage() {
         <DailyMotivator />
 
         <section>
-          <h2 className="text-lg font-medium mb-3">Участники</h2>
+          <h2 className="text-lg font-medium mb-3">Учасники</h2>
           {users.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Пока никого нет. Добавьте участников в{" "}
+              Поки нікого немає. Додайте учасників у{" "}
               <Link href="/admin" className="underline">
-                админке
+                адмінці
               </Link>
               .
             </p>

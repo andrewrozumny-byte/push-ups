@@ -17,7 +17,7 @@ type ProgressGridProps = {
 
 function formatDay(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("uk-UA", { day: "numeric", month: "short" });
 }
 
 export function ProgressGrid({
@@ -49,7 +49,7 @@ export function ProgressGrid({
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-muted-foreground">
-        Последние {daysToShow} дней
+        Останні {daysToShow} днів
       </p>
       <div
         className={cn(

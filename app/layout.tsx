@@ -18,8 +18,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Push-ups Tracker",
-  description: "Трекер отжиманий для группы друзей",
+  title: "Трекер віджимань",
+  description: "Трекер віджимань для групи друзів",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={cn("font-sans", inter.variable)}>
+    <html lang="uk" className={cn("font-sans", inter.variable)}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -33,13 +33,13 @@ export function UserCard({ user, checkedInToday }: UserCardProps) {
           </Link>
         </CardTitle>
         <Badge variant="secondary" className="shrink-0">
-          {user.total_checkins} дней
+          {user.total_checkins} днів
         </Badge>
       </CardHeader>
       <CardContent>
         {user.last_checkin && (
           <p className="text-sm text-muted-foreground">
-            Последний раз: {user.last_checkin}
+            Востаннє: {user.last_checkin}
           </p>
         )}
       </CardContent>
@@ -50,7 +50,7 @@ export function UserCard({ user, checkedInToday }: UserCardProps) {
           userName={user.name}
         />
         <Link href={`/${user.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          Профиль
+          Профіль
         </Link>
       </CardFooter>
     </Card>

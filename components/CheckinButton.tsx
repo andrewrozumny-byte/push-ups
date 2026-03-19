@@ -35,10 +35,10 @@ export function CheckinButton({
         setTimeout(() => setPulse(false), 600);
       } else {
         if (res.status === 409) setCheckedIn(true);
-        else alert(data.error || "Ошибка");
+        else alert(data.error || "Помилка");
       }
     } catch {
-      alert("Ошибка сети");
+      alert("Помилка мережі");
     } finally {
       setLoading(false);
     }
@@ -53,9 +53,9 @@ export function CheckinButton({
         "transition-transform",
         pulse && "animate-pulse scale-110"
       )}
-      aria-label={checkedIn ? "Уже отжался сегодня" : `Отметиться: ${userName ?? "отжимания"}`}
+      aria-label={checkedIn ? "Вже віджався сьогодні" : `Відмітитися: ${userName ?? "віджимання"}`}
     >
-      {loading ? "..." : checkedIn ? "✓ Отжался" : "Отжался"}
+      {loading ? "..." : checkedIn ? "✓ Віджався" : "Віджався"}
     </Button>
   );
 }

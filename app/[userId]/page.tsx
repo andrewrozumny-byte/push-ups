@@ -38,7 +38,7 @@ export default async function UserPage({ params }: PageProps) {
         <div>
           <h1 className="text-2xl font-semibold">{user.name}</h1>
           <p className="text-muted-foreground text-sm">
-            Всего дней с отжиманиями: {checkins.length}
+            Всього днів з віджиманнями: {checkins.length}
           </p>
         </div>
 

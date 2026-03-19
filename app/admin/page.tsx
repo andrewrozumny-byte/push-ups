@@ -50,7 +50,7 @@ export default function AdminPage() {
     if (res.ok && data.ok) {
       setAuth(true);
     } else {
-      setError("Неверный пароль");
+      setError("Невірний пароль");
     }
   };
 
@@ -60,7 +60,7 @@ export default function AdminPage() {
     const slug = newSlug.trim() || name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     if (!name) return;
     if (!slug) {
-      alert("Укажите имя латиницей или введите slug вручную");
+      alert("Вкажіть ім'я латиницею або введіть slug вручну");
       return;
     }
     setLoading(true);
@@ -77,7 +77,7 @@ export default function AdminPage() {
         setNewSlug("");
         setNewEmoji("💪");
       } else {
-        alert(data.error || "Ошибка");
+        alert(data.error || "Помилка");
       }
     } finally {
       setLoading(false);
@@ -85,7 +85,7 @@ export default function AdminPage() {
   };
 
   const deleteUser = async (id: string) => {
-    if (!confirm("Удалить участника? Отметки тоже удалятся.")) return;
+    if (!confirm("Видалити учасника? Відмітки теж видаляться.")) return;
     const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
     if (res.ok) {
       setUsers((prev) => prev.filter((u) => u.id !== id));
@@ -97,8 +97,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/init", { method: "POST" });
       const data = await res.json();
-      if (res.ok) alert("Таблицы созданы");
-      else alert(data.error || "Ошибка");
+      if (res.ok) alert("Таблиці створено");
+      else alert(data.error || "Помилка");
     } finally {
       setInitLoading(false);
     }
@@ -107,7 +107,7 @@ export default function AdminPage() {
   if (auth === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Проверка доступа...</p>
+        <p className="text-muted-foreground">Перевірка доступу...</p>
       </div>
     );
   }
@@ -117,7 +117,7 @@ export default function AdminPage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>Вход в админку</CardTitle>
+            <CardTitle>Вхід в адмінку</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-3">
@@ -132,11 +132,11 @@ export default function AdminPage() {
                 <p className="text-sm text-destructive">{error}</p>
               )}
               <Button type="submit" className="w-full">
-                Войти
+                Увійти
               </Button>
             </form>
             <Link href="/" className={cn(buttonVariants({ variant: "ghost" }), "mt-4 w-full inline-flex justify-center")}>
-              На главную
+              На головну
             </Link>
           </CardContent>
         </Card>
@@ -147,16 +147,16 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b px-4 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Админка</h1>
+        <h1 className="text-xl font-semibold">Адмінка</h1>
         <Link href="/" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          На главную
+          На головну
         </Link>
       </header>
 
       <main className="container max-w-xl mx-auto px-4 py-6 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>База данных</CardTitle>
+            <CardTitle>База даних</CardTitle>
           </CardHeader>
           <CardContent>
             <Button
@@ -165,19 +165,19 @@ export default function AdminPage() {
               onClick={initDb}
               disabled={initLoading}
             >
-              {initLoading ? "..." : "Создать таблицы (если ещё не созданы)"}
+              {initLoading ? "..." : "Створити таблиці (якщо ще не створено)"}
             </Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Добавить участника</CardTitle>
+            <CardTitle>Додати учасника</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={addUser} className="space-y-2">
               <div className="flex gap-2 flex-wrap">
                 <Input
-                  placeholder="Имя"
+                  placeholder="Ім'я"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                 />
@@ -195,7 +195,7 @@ export default function AdminPage() {
                 />
               </div>
               <Button type="submit" disabled={loading}>
-                Добавить
+                Додати
               </Button>
             </form>
           </CardContent>
@@ -203,7 +203,7 @@ export default function AdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Участники ({users.length})</CardTitle>
+            <CardTitle>Учасники ({users.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -218,7 +218,7 @@ export default function AdminPage() {
                     size="sm"
                     onClick={() => deleteUser(u.id)}
                   >
-                    Удалить
+                    Видалити
                   </Button>
                 </li>
               ))}

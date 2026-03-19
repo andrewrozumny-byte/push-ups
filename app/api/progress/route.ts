@@ -12,7 +12,7 @@ export async function GET() {
       users: usersWithStats,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to fetch progress";
+    const message = e instanceof Error ? e.message : "Не вдалося завантажити прогрес";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json(
-        { error: "userId is required" },
+        { error: "Потрібен userId" },
         { status: 400 }
       );
     }
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const existing = await getCheckinByUserAndDate(userId, date);
     if (existing) {
       return NextResponse.json(
-        { error: "Already checked in for this date", checkin: existing },
+        { error: "Вже відмічено на цю дату", checkin: existing },
         { status: 409 }
       );
     }
@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
     const checkin = await createCheckin(userId, date);
     return NextResponse.json(checkin);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Checkin failed";
+    const message = e instanceof Error ? e.message : "Помилка відмітки";
     if (message === "CHECKIN_EXISTS") {
       return NextResponse.json(
-        { error: "Already checked in for this date" },
+        { error: "Вже відмічено на цю дату" },
         { status: 409 }
       );
     }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   if (!userId) {
     return NextResponse.json(
-      { error: "userId is required" },
+      { error: "Потрібен userId" },
       { status: 400 }
     );
   }

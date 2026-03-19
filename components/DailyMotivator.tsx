@@ -23,7 +23,7 @@ export function DailyMotivator() {
     return (
       <Card className="bg-muted/30">
         <CardContent className="py-4">
-          <p className="text-sm text-muted-foreground">Загрузка...</p>
+          <p className="text-sm text-muted-foreground">Завантаження...</p>
         </CardContent>
       </Card>
     );

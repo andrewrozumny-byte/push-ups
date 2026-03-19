@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
   if (!expected) {
     return NextResponse.json(
-      { error: "Admin password not configured" },
+      { error: "Пароль адміна не налаштовано" },
       { status: 500 }
     );
   }

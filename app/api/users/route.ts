@@ -6,7 +6,7 @@ export async function GET() {
     const users = await getUsers();
     return NextResponse.json(users);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to fetch users";
+    const message = e instanceof Error ? e.message : "Не вдалося завантажити учасників";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -27,20 +27,20 @@ export async function POST(request: NextRequest) {
     const emoji = (body?.emoji as string)?.trim() || "💪";
     if (!name) {
       return NextResponse.json(
-        { error: "name is required" },
+        { error: "Потрібне ім'я" },
         { status: 400 }
       );
     }
     if (!slug) {
       return NextResponse.json(
-        { error: "slug is required or provide a name with Latin letters" },
+        { error: "Вкажіть slug або ім'я латиницею" },
         { status: 400 }
       );
     }
     const user = await createUser({ name, slug, emoji });
     return NextResponse.json(user);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to create user";
+    const message = e instanceof Error ? e.message : "Не вдалося створити учасника";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -51,14 +51,14 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
     if (!id) {
       return NextResponse.json(
-        { error: "id is required" },
+        { error: "Потрібен id" },
         { status: 400 }
       );
     }
     await deleteUser(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to delete user";
+    const message = e instanceof Error ? e.message : "Не вдалося видалити учасника";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
