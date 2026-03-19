@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDayIndex } from "@/lib/daily";
 import { getPushupsForDate, getUsersWithCheckinTokens } from "@/lib/db";
+import { getDailyMeme } from "@/lib/memes";
 import { getDailyMotivator } from "@/lib/motivators";
 import {
   formatKyivDate,
@@ -25,6 +27,30 @@ async function requireCronAuth(request: NextRequest): Promise<boolean> {
 type InlineKeyboard = {
   inline_keyboard: Array<Array<{ text: string; url: string }>>;
 };
+
+async function sendTelegramMorningMemePhoto(photoUrl: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
+  const chatId = process.env.TELEGRAM_CHAT_ID ?? "";
+
+  if (!token || !chatId) {
+    throw new Error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not set");
+  }
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: photoUrl,
+      caption: "🌅 Ранковий мем для мотивації 💪",
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Telegram sendPhoto failed: ${res.status} ${body}`);
+  }
+}
 
 async function sendTelegramMessage(text: string, replyMarkup?: InlineKeyboard) {
   const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
@@ -71,6 +97,7 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
     const formattedDate = formatKyivDate(now);
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 
     const pushupsToday = getPushupsForDate(new Date());
     const remainingDays = Math.max(0, 100 - pushupsToday);
@@ -82,7 +109,6 @@ export async function GET(request: NextRequest) {
 
     const missedYesterday = await getYesterdayMissed();
 
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const users = await getUsersWithCheckinTokens();
     const inline_keyboard =
       baseUrl.length > 0
@@ -114,6 +140,16 @@ export async function GET(request: NextRequest) {
       `\n🙏 <i>"${quoteHtml}"</i>\n` +
       `${missedBlock}\n\n` +
       `Погнали, братове! 🔥`;
+
+    if (!baseUrl) {
+      console.warn(
+        "[Telegram Morning] NEXT_PUBLIC_APP_URL missing, skipping meme photo"
+      );
+    } else {
+      void getDayIndex();
+      const photoUrl = `${baseUrl}/memes/${getDailyMeme()}`;
+      await sendTelegramMorningMemePhoto(photoUrl);
+    }
 
     await sendTelegramMessage(text, { inline_keyboard });
     return NextResponse.json({ ok: true });
