@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPushupsForDate, getUsersWithCheckinTokens } from "@/lib/db";
+import { getDailyMotivator } from "@/lib/motivators";
 import {
   formatKyivDate,
   getYesterdayMissed,
@@ -73,6 +74,11 @@ export async function GET(request: NextRequest) {
 
     const pushupsToday = getPushupsForDate(new Date());
     const remainingDays = Math.max(0, 100 - pushupsToday);
+    const motivator = getDailyMotivator();
+    const quoteHtml = motivator.quote
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
     const missedYesterday = await getYesterdayMissed();
 
@@ -105,6 +111,7 @@ export async function GET(request: NextRequest) {
       `📅 ${formattedDate}\n\n` +
       `💪 Сьогодні норма: <b>${pushupsToday} віджимань</b>\n` +
       `🎯 До мети 100 залишилось: <b>${remainingDays} ${pluralizeDay(remainingDays)}</b>\n` +
+      `\n🙏 <i>"${quoteHtml}"</i>\n` +
       `${missedBlock}\n\n` +
       `Погнали, братове! 🔥`;
 
