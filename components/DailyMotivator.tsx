@@ -7,6 +7,8 @@ type DailyMotivator = {
   quote: string;
   source?: string;
   alt?: string;
+  /** Filename under /public/memes — from API so it matches quote (same day index). */
+  meme?: string;
 };
 
 export function DailyMotivator() {
@@ -41,13 +43,15 @@ export function DailyMotivator() {
 
   if (!motivator) return null;
 
+  const memeFile = motivator.meme ?? getDailyMeme();
+
   return (
     <div className="rounded-2xl border border-[#1e1e1e] bg-[#111111] overflow-hidden transition-shadow hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_0_30px_rgba(34,197,94,0.06)]">
       {/* Image on top (no cropping) */}
       <div className="w-full bg-[#111111] rounded-t-xl overflow-hidden">
         {!imageError ? (
           <img
-            src={`/memes/${getDailyMeme()}`}
+            src={`/memes/${memeFile}`}
             alt={motivator.alt ?? "Мотивація дня"}
             className="w-full max-h-[350px] object-contain bg-[#111111]"
             loading="eager"

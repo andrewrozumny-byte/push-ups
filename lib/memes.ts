@@ -1,3 +1,5 @@
+import { getDayIndex } from "./daily";
+
 // Auto-generated - do not edit manually
 // Source: ./public/memes (sorted)
 export const MEMES: string[] = [
@@ -13,8 +15,5 @@ export const MEMES: string[] = [
 ];
 
 export function getDailyMeme(): string {
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
-  )
-  return MEMES[dayOfYear % MEMES.length]
+  return MEMES[getDayIndex() % MEMES.length]!;
 }

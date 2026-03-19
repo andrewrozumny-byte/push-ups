@@ -1,3 +1,5 @@
+import { getDayIndex } from "./daily";
+
 export type DailyMotivator = {
   photoUrl: string;
   quote: string;
@@ -97,8 +99,14 @@ export function getRandomBiblicalMotivator(): BiblicalMotivator {
   return getRandomMotivator();
 }
 
+/** Daily quote — same day index as {@link getDailyMeme}. */
+export function getDailyMotivator(): DailyMotivator {
+  return dailyMotivators[getDayIndex() % dailyMotivators.length]!;
+}
+
+/** @param seed — optional override for tests; defaults to shared {@link getDayIndex}. */
 export function getMotivatorOfDay(seed?: number): DailyMotivator {
-  const index = seed ?? new Date().getDate();
+  const index = seed ?? getDayIndex();
   return dailyMotivators[index % dailyMotivators.length]!;
 }
 
