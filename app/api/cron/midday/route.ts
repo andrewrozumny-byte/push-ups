@@ -56,7 +56,7 @@ function buildMissedList(items: TelegramUserLabel[], startIndex = 0): string {
     .join("\n");
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!(await requireCronAuth(request))) {
     return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
   }

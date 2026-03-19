@@ -388,7 +388,7 @@ export default function AdminPage() {
     setTelegramTestResult("");
     try {
       const res = await fetch(path, {
-        method: "POST",
+        method: "GET",
         headers: { ...(adminHeader ?? {}), "x-admin-password": storedPassword ?? "" },
       });
 
