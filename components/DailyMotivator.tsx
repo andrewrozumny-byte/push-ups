@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 
-type Motivator = { text: string; source?: string };
+type DailyMotivator = {
+  photoUrl: string;
+  quote: string;
+  source?: string;
+  alt?: string;
+};
 
 export function DailyMotivator() {
-  const [motivator, setMotivator] = useState<Motivator | null>(null);
+  const [motivator, setMotivator] = useState<DailyMotivator | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,24 +25,45 @@ export function DailyMotivator() {
 
   if (loading) {
     return (
-      <Card className="bg-muted/30">
-        <CardContent className="py-4">
-          <p className="text-sm text-muted-foreground">Завантаження...</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        <div className="relative">
+          <div className="h-44 w-full bg-white/5 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="h-3 w-3/4 bg-white/10 animate-pulse rounded" />
+            <div className="mt-2 h-3 w-1/2 bg-white/10 animate-pulse rounded" />
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (!motivator) return null;
 
   return (
-    <Card className="bg-muted/30 border-primary/20">
-      <CardContent className="py-4">
-        <p className="text-sm font-medium italic">&ldquo;{motivator.text}&rdquo;</p>
-        {motivator.source && (
-          <p className="mt-1 text-xs text-muted-foreground">{motivator.source}</p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+      <div className="relative">
+        <img
+          src={motivator.photoUrl}
+          alt={motivator.alt ?? "Daily motivator"}
+          className="h-44 w-full object-cover"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+
+        <div className="absolute inset-0 p-4 flex flex-col justify-end">
+          <div className="text-xs text-white/60 mb-2">Мотивация дня</div>
+          <div className="text-sm sm:text-base font-bold leading-snug">
+            <span className="text-[#22c55e]">“</span>
+            <span>{motivator.quote}</span>
+            <span className="text-[#22c55e]">”</span>
+          </div>
+          {motivator.source && (
+            <div className="mt-2 text-xs text-white/70">{motivator.source}</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

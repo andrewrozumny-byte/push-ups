@@ -1,15 +1,25 @@
-import { NextResponse } from "next/server";
-import { getProgressAll, getUsersWithStats } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { getCheckinsByUser } from "@/lib/db";
+import { getPenaltyStatus } from "@/lib/penalties";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
+
+  if (!userId) {
+    return NextResponse.json({ error: "Потрібен userId" }, { status: 400 });
+  }
+
   try {
-    const [progress, usersWithStats] = await Promise.all([
-      getProgressAll(),
-      getUsersWithStats(),
+    const [checkins, penalty] = await Promise.all([
+      getCheckinsByUser(userId),
+      getPenaltyStatus(userId),
     ]);
+
     return NextResponse.json({
-      progress,
-      users: usersWithStats,
+      checkins,
+      streak: penalty.currentStreak,
+      penalty,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося завантажити прогрес";

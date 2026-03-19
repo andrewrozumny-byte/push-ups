@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRandomMotivator, getMotivatorOfDay } from "@/lib/motivators";
+import { getMotivatorOfDay } from "@/lib/motivators";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const mode = searchParams.get("mode") ?? "random"; // "random" | "daily"
+  void request;
 
-  const motivator =
-    mode === "daily" ? getMotivatorOfDay() : getRandomMotivator();
+  const now = new Date();
+  const dayIndexUTC = Math.floor(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000
+  );
+
+  const motivator = getMotivatorOfDay(dayIndexUTC);
+  // Одинаков для всех в рамках одного дня
   return NextResponse.json(motivator);
 }

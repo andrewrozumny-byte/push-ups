@@ -3,6 +3,8 @@
  * Можно расширить: штраф за день без отжиманий, накопление долга и т.д.
  */
 
+import { getCheckinsByUser } from "@/lib/db";
+
 export const PENALTY_PER_MISSED_DAY = 1;
 
 export type PenaltyRule = {
@@ -19,41 +21,72 @@ export const PENALTY_RULES: PenaltyRule[] = [
 ];
 
 /**
- * Вычисляет количество пропущенных дней между двумя датами (исключая выходные по желанию).
- * dateFrom, dateTo — строки YYYY-MM-DD.
+ * Вычисляет уровень штрафа по пропускам подряд.
+ * Правило (как в ТЗ):
+ * - 3 дня подряд = уровень 1
+ * - второй раз 3 дня = уровень 2
+ * - третий раз 3 дня = уровень 3
  */
-export function getMissedDays(
-  dateFrom: string,
-  dateTo: string,
-  options?: { excludeWeekends?: boolean }
-): number {
-  const from = new Date(dateFrom);
-  const to = new Date(dateTo);
-  if (from > to) return 0;
-  let count = 0;
-  const d = new Date(from);
-  while (d <= to) {
-    if (options?.excludeWeekends) {
-      const day = d.getDay();
-      if (day !== 0 && day !== 6) count++;
-    } else {
-      count++;
-    }
-    d.setDate(d.getDate() + 1);
-  }
-  return count;
+export function getPenaltyLevelFromMissedDays(missedDays: number): 0 | 1 | 2 | 3 {
+  if (missedDays < 3) return 0;
+  // missedDays: 3..5 => 1, 6..8 => 2, 9+ => 3
+  return Math.min(3, Math.floor(missedDays / 3)) as 0 | 1 | 2 | 3;
+}
+
+export type PenaltyStatus = {
+  level: 0 | 1 | 2 | 3;
+  currentStreak: number;
+  missedDays: number;
+};
+
+function isoDateUTC(d: Date): string {
+  // YYYY-MM-DD in UTC
+  return d.toISOString().slice(0, 10);
+}
+
+function addDaysUTC(date: Date, delta: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d;
 }
 
 /**
- * Возвращает штрафные очки за пропуск N дней подряд.
+ * Считает:
+ * - currentStreak: серия дней с чек-ином, заканчивающаяся сегодня
+ * - missedDays: пропуски подряд, заканчивающиеся сегодня
+ * - level: уровень штрафа по missedDays
  */
-export function getPenaltyForMissedDays(missedDays: number): number {
-  if (missedDays <= 0) return 0;
-  let points = 0;
-  for (const rule of PENALTY_RULES) {
-    if (missedDays >= rule.missedDays) {
-      points = Math.max(points, rule.penaltyPoints);
+export async function getPenaltyStatus(
+  userId: string
+): Promise<PenaltyStatus> {
+  // Важно: за "сегодня" и streak/missed считаем по одной и той же логике даты (UTC).
+  const today = new Date();
+  const todayStr = isoDateUTC(today);
+
+  const checkins = await getCheckinsByUser(userId);
+  const checkinDates = new Set(checkins.map((c) => c.date));
+
+  // streak: считаем назад, пока есть чек-ины
+  let currentStreak = 0;
+  if (checkinDates.has(todayStr)) {
+    let cursor = new Date(todayStr + "T00:00:00.000Z");
+    while (checkinDates.has(isoDateUTC(cursor))) {
+      currentStreak++;
+      cursor = addDaysUTC(cursor, -1);
     }
   }
-  return points > 0 ? points : missedDays * PENALTY_PER_MISSED_DAY;
+
+  // missedDays: считаем назад, пока нет чек-инов
+  let missedDays = 0;
+  let cursor = new Date(todayStr + "T00:00:00.000Z");
+  while (!checkinDates.has(isoDateUTC(cursor))) {
+    missedDays++;
+    cursor = addDaysUTC(cursor, -1);
+    // страховка от бесконечного цикла при пустой истории
+    if (missedDays > 3650) break;
+  }
+
+  const level = getPenaltyLevelFromMissedDays(missedDays);
+
+  return { level, currentStreak, missedDays };
 }
