@@ -10,8 +10,20 @@ function adminPasswordOk(request: NextRequest): boolean {
   return provided === expected;
 }
 
+function isPublicUsersListRead(request: NextRequest, pathname: string): boolean {
+  if (!pathname.startsWith("/api/users")) return false;
+  // List + enrich: GET /api/users is public (main page for everyone).
+  // Mutations (POST/DELETE on collection, PATCH on /api/users/[id]) stay protected below.
+  const m = request.method;
+  return m === "GET" || m === "HEAD" || m === "OPTIONS";
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isPublicUsersListRead(request, pathname)) {
+    return NextResponse.next();
+  }
 
   // Protect admin APIs: require either an authenticated cookie (set by /api/admin/auth)
   // or a correct x-admin-password header.
@@ -30,6 +42,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/users/:path*", "/api/admin/init/:path*"],
+  matcher: [
+    "/api/users",
+    "/api/users/:path*",
+    "/api/admin/init",
+    "/api/admin/init/:path*",
+  ],
 };
 
