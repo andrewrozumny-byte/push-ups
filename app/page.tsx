@@ -32,7 +32,13 @@ function formatTodayRuUkUkz(dateStr: string) {
 }
 
 function getPushupsTodayClientUTC(dateStr: string): number {
-  const startDate = process.env.NEXT_PUBLIC_START_DATE ?? DEFAULT_START_DATE;
+  // Optional override: set NEXT_PUBLIC_TODAY_NORM=26 to force today's norm (e.g. in .env.local)
+  const override = process.env.NEXT_PUBLIC_TODAY_NORM;
+  if (override != null && override !== "") {
+    const n = Number(override);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const startDate = (process.env.NEXT_PUBLIC_START_DATE ?? DEFAULT_START_DATE).replace(/_/g, "-");
   const start = new Date(`${startDate}T00:00:00.000Z`);
   const today = new Date(`${dateStr}T00:00:00.000Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) {
