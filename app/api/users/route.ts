@@ -9,6 +9,13 @@ import {
 } from "@/lib/db";
 import { getPenaltyStatus } from "@/lib/penalties";
 
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Access-Control-Allow-Origin": "*",
+};
+
 function slugFromName(name: string): string {
   return name
     .toLowerCase()
@@ -90,17 +97,23 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json(enriched);
+    return NextResponse.json(enriched, { headers: NO_STORE_HEADERS });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося завантажити учасників";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   const adminOk = requireAdmin(request);
   if (!adminOk) {
-    return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Немає доступу" },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
   }
 
   try {
@@ -114,17 +127,23 @@ export async function POST(request: NextRequest) {
     if (!slug) return NextResponse.json({ error: "Вкажіть slug або ім'я латиницею" }, { status: 400 });
 
     const user = await createUser({ name, slug, emoji, telegram_username });
-    return NextResponse.json(user);
+    return NextResponse.json(user, { headers: NO_STORE_HEADERS });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося створити учасника";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
 
 export async function DELETE(request: NextRequest) {
   const adminOk = requireAdmin(request);
   if (!adminOk) {
-    return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Немає доступу" },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
   }
 
   try {
@@ -139,9 +158,12 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Потрібен id" }, { status: 400 });
 
     await deleteUser(id);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося видалити учасника";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
