@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPushupsForYmd, getUsers } from "@/lib/db";
+import { getPushupsForYmd, getUsers, type User } from "@/lib/db";
 import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import { checkAndSendPenaltyAlarm } from "@/lib/penaltyAlarm";
+import { getPenaltyStatus } from "@/lib/penalties";
 import {
   formatKyivDate,
   formatProgressBar,
-  getConsecutiveMisses,
   getTodayCheckins,
   getTodayMissed,
   getMonthProgress,
@@ -55,16 +56,26 @@ function buildTagLine(user: TelegramUserLabel): string {
   return `${user.emoji} ${user.display}`;
 }
 
-async function buildMissedLines(missed: TelegramUserLabel[]) {
+async function buildMissedLines(
+  missed: TelegramUserLabel[],
+  usersById: Map<string, User>
+) {
   const lines: string[] = [];
   for (const u of missed) {
-    const misses = await getConsecutiveMisses(u.userId);
-    const n = Math.max(1, misses);
-    const ordinal =
-      n === 1 ? "1-й день без відмітки" : `${n}-й день підряд`;
-    const suffix =
-      n >= 3 ? ` — ${ordinal} 🚨 ШТРАФ!` : ` — ${ordinal} ⚠️`;
-    lines.push(`- ${u.emoji} ${u.display}${suffix}`);
+    const row = usersById.get(u.userId);
+    const penalty = row
+      ? await getPenaltyStatus(u.userId, row.created_at)
+      : { missedDays: 1 };
+    const n = Math.max(1, penalty.missedDays);
+    const tail =
+      n === 1
+        ? "1й день ⚠️"
+        : n === 2
+          ? "2й день 🟠"
+          : n === 3
+            ? "3й день 🔴 ШТРАФ!"
+            : `${n}й день 🔴`;
+    lines.push(`- ${u.emoji} ${u.display} — ${tail}`);
   }
   return lines.join("\n");
 }
@@ -78,21 +89,29 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const formattedDate = formatKyivDate(now);
 
-    const [todayCheckins, todayMissed, weekProgress, monthProgress] =
+    const [todayCheckins, todayMissed, weekProgress, monthProgress, allUsers] =
       await Promise.all([
         getTodayCheckins(),
         getTodayMissed(),
         getWeekProgress(),
         getMonthProgress(),
+        getUsers(),
       ]);
 
+    const usersById = new Map(allUsers.map((u) => [u.id, u] as const));
+    for (const u of allUsers) {
+      const penalty = await getPenaltyStatus(u.id, u.created_at);
+      await checkAndSendPenaltyAlarm(u.name, penalty.missedDays, penalty.level);
+    }
+
     const todayStr = getKyivDate(now);
-    const eligibleNotNewCount = (await getUsers()).filter((u) => {
+    const eligibleNotNewCount = allUsers.filter((u) => {
       const createdStr = getKyivDate(u.created_at);
       return createdStr < todayStr;
     }).length;
 
-    const allDone = eligibleNotNewCount > 0 && todayMissed.length === 0;
+    const allDone =
+      eligibleNotNewCount > 0 && todayMissed.length === 0;
 
     const tomorrowPushups = getPushupsForYmd(addCalendarDays(todayStr, 1));
 
@@ -120,7 +139,7 @@ export async function GET(request: NextRequest) {
 
       const missedLines =
         todayMissed.length > 0
-          ? await buildMissedLines(todayMissed)
+          ? await buildMissedLines(todayMissed, usersById)
           : "- (немає)";
 
       const missedBlock = `❌ <b>Не відмітились сьогодні:</b>\n${missedLines}`;

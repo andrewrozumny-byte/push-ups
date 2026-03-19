@@ -73,6 +73,8 @@ export async function GET() {
               );
 
         const penalty = await getPenaltyStatus(u.id, u.created_at);
+        // Consecutive Kyiv-calendar days without check-in ending today; 0 if відмітка сьогодні
+        const missedDays = checkedInToday ? 0 : penalty.missedDays;
 
         return {
           ...u,
@@ -80,7 +82,7 @@ export async function GET() {
           pushupsToday,
           streak: penalty.currentStreak,
           penaltyLevel: penalty.level,
-          missedDays: penalty.missedDays,
+          missedDays,
           progressPct,
         };
       })

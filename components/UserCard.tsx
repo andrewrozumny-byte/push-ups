@@ -12,6 +12,7 @@ type DashboardUser = {
   streak: number;
   penaltyLevel: 0 | 1 | 2 | 3;
   progressPct: number | null;
+  missedDays: number;
 };
 
 type UserCardProps = {
@@ -22,10 +23,30 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function getMissedStreak(missedDays: number) {
+  return [
+    {
+      active: missedDays >= 1,
+      color:
+        missedDays >= 3
+          ? "bg-red-500"
+          : missedDays >= 2
+            ? "bg-orange-500"
+            : "bg-yellow-400",
+    },
+    {
+      active: missedDays >= 2,
+      color: missedDays >= 3 ? "bg-red-500" : "bg-orange-500",
+    },
+    { active: missedDays >= 3, color: "bg-red-500" },
+  ] as const;
+}
+
 export function UserCard({ user }: UserCardProps) {
   const progressPct = user.progressPct;
   const progress = progressPct == null ? 0 : clamp(progressPct, 0, 100);
   const done = user.checkedInToday;
+  const missedDays = user.missedDays ?? 0;
 
   const outer = cn(
     "block rounded-2xl p-[1px] transition-all",
@@ -35,14 +56,25 @@ export function UserCard({ user }: UserCardProps) {
       : "hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_28px_rgba(249,115,22,0.06)]"
   );
 
+  const innerBorder = done
+    ? "border-green-500/50 shadow-lg shadow-green-500/20"
+    : missedDays >= 3
+      ? "border-red-500/50 shadow-md shadow-red-500/20 animate-pulse"
+      : missedDays === 2
+        ? "border-orange-500/50 shadow-md shadow-orange-500/20"
+        : missedDays === 1
+          ? "border-yellow-500/50 shadow-md shadow-yellow-500/20"
+          : "border-gray-800";
+
+  const dots = missedDays > 0 ? getMissedStreak(missedDays) : [];
+
   return (
     <Link href={`/${user.slug}`} className={outer}>
       <div
         className={cn(
-          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-3 min-h-[80px]",
-          done
-            ? "border-l-2 border-l-[#22c55e] shadow-[0_0_28px_rgba(34,197,94,0.35)]"
-            : "border-l-2 border-l-transparent opacity-90"
+          "rounded-2xl border bg-[#111111] p-3 min-h-[80px] transition-shadow",
+          innerBorder,
+          done ? "" : "opacity-95"
         )}
       >
         <div className="flex items-start gap-3">
@@ -101,6 +133,20 @@ export function UserCard({ user }: UserCardProps) {
                 </>
               )}
             </div>
+
+            {dots.length > 0 ? (
+              <div className="mt-2 flex gap-1.5" aria-label="Серія пропусків">
+                {dots.map((dot, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      dot.active ? dot.color : "bg-gray-700"
+                    )}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
