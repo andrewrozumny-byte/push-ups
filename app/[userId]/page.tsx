@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProfileCheckinButton } from "@/components/ProfileCheckinButton";
 import { ProfileProgressGrid } from "@/components/ProfileProgressGrid";
+import { ProfileStatsClient } from "@/components/ProfileStatsClient";
 import {
   getCheckinsByUser,
   getUserBySlug,
-  PUSHUPS_START_DATE,
 } from "@/lib/db";
 
 import { getPenaltyStatus as getPenalty } from "@/lib/penalties";
@@ -62,15 +61,26 @@ export default async function ProfilePage({
 
   const totalDays = checkins.length;
 
-  const startStr = PUSHUPS_START_DATE.toISOString().slice(0, 10);
   const todayUTC = parseISOUTC(todayStr);
-  const startUTC = parseISOUTC(startStr);
-  const elapsedDays = Math.max(
-    1,
-    Math.floor((todayUTC.getTime() - startUTC.getTime()) / 86400000) + 1
-  );
+  const createdStr = user.created_at.toISOString().slice(0, 10);
+  const createdUTC = parseISOUTC(createdStr);
 
-  const progressPct = Math.round((totalDays / elapsedDays) * 100);
+  const daysSinceRegistrationRaw =
+    Math.floor((todayUTC.getTime() - createdUTC.getTime()) / 86400000) + 1;
+  const daysSinceRegistration = Number.isFinite(daysSinceRegistrationRaw)
+    ? Math.max(1, daysSinceRegistrationRaw)
+    : 1;
+
+  const progressPct =
+    daysSinceRegistration < 3
+      ? null
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round((totalDays / daysSinceRegistration) * 100)
+          )
+        );
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-white overflow-x-hidden">
@@ -84,32 +94,16 @@ export default async function ProfilePage({
       </div>
 
       <div className="px-4 pb-10 pt-4 space-y-4">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="text-[56px] leading-none">{user.emoji}</div>
-              <div>
-                <div className="text-xl sm:text-2xl font-bold">{user.name}</div>
-                <div className="mt-2 text-sm text-white/70">
-                  🔥 {penalty.currentStreak} днів поспіль
-                </div>
-              </div>
-            </div>
-
-            {penalty.level > 0 && (
-              <div className="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-red-300 text-sm">
-                ⚠️ Штраф: рівень {penalty.level}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <ProfileCheckinButton
-            userId={user.id}
-            initialCheckedIn={!!todayCheckin}
-          />
-        </section>
+        <ProfileStatsClient
+          userId={user.id}
+          emoji={user.emoji}
+          name={user.name}
+          initialCheckedIn={!!todayCheckin}
+          initialPenalty={penalty}
+          initialTotalDays={totalDays}
+          initialBestStreak={bestStreak}
+          initialProgressPct={progressPct}
+        />
 
         <section>
           <ProfileProgressGrid
@@ -119,52 +113,6 @@ export default async function ProfilePage({
           />
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs text-white/60">Всього днів</div>
-            <div className="mt-1 text-2xl font-black">{totalDays}</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs text-white/60">Поточна серія</div>
-            <div className="mt-1 text-2xl font-black">🔥 {penalty.currentStreak}</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs text-white/60">Найкраща серія</div>
-            <div className="mt-1 text-2xl font-black">{bestStreak}</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs text-white/60">Загальний прогрес</div>
-            <div className="mt-1 text-2xl font-black">{progressPct}%</div>
-          </div>
-
-          <div
-            className={[
-              "sm:col-span-2 rounded-2xl border p-4",
-              penalty.level > 0
-                ? "border-red-500/30 bg-red-500/10"
-                : "border-white/10 bg-white/[0.02]",
-            ].join(" ")}
-          >
-            <div
-              className={[
-                "text-xs",
-                penalty.level > 0 ? "text-red-200" : "text-white/60",
-              ].join(" ")}
-            >
-              Статус штрафа
-            </div>
-            <div
-              className={[
-                "mt-1 text-lg font-black",
-                penalty.level > 0 ? "text-red-200" : "text-white",
-              ].join(" ")}
-            >
-              {penalty.level > 0
-                ? `⚠️ Рівень ${penalty.level} (пропуски: ${penalty.missedDays})`
-                : "✅ Без штрафів"}
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

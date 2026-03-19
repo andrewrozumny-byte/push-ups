@@ -11,13 +11,14 @@ type AdminUser = {
   name: string;
   emoji: string;
   slug: string;
+  telegram_username: string | null;
   created_at: string;
   checkedInToday: boolean;
   pushupsToday: number;
   streak: number;
   penaltyLevel: 0 | 1 | 2 | 3;
   missedDays: number;
-  progressPct: number;
+  progressPct: number | null;
 };
 
 const EMOJIS = ["💪", "🔥", "⚡", "🎯", "🦾", "👊", "🏋️‍♂️", "🚀"] as const;
@@ -70,6 +71,20 @@ export default function AdminPage() {
   const [newName, setNewName] = useState("");
   const [newEmoji, setNewEmoji] = useState<(typeof EMOJIS)[number]>("💪");
   const [newSlug, setNewSlug] = useState("");
+  const [newTelegramUsername, setNewTelegramUsername] = useState("");
+
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editTelegramUsername, setEditTelegramUsername] = useState("");
+  const [editEmoji, setEditEmoji] = useState<(typeof EMOJIS)[number]>("💪");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string>("");
+  const [editOriginalSlug, setEditOriginalSlug] = useState<string>("");
+  const [lastSavedUserId, setLastSavedUserId] = useState<string | null>(null);
+  const [slugWarnings, setSlugWarnings] = useState<
+    Record<string, { oldSlug: string; newSlug: string }>
+  >({});
 
   const storedPassword = useMemo(() => adminPassword, [adminPassword]);
 
@@ -184,7 +199,12 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           "x-admin-password": pwd,
         },
-        body: JSON.stringify({ name, slug, emoji: newEmoji }),
+        body: JSON.stringify({
+          name,
+          slug,
+          emoji: newEmoji,
+          telegram_username: newTelegramUsername.trim() || null,
+        }),
       });
       const data = await res.json();
 
@@ -206,6 +226,7 @@ export default function AdminPage() {
       setNewName("");
       setNewSlug("");
       setNewEmoji("💪");
+      setNewTelegramUsername("");
 
       // Refresh full list so new user has enriched stats
       await refreshUsers();
@@ -251,11 +272,141 @@ export default function AdminPage() {
     }
   };
 
+  const handleEditSave = async (e: React.FormEvent, user: AdminUser) => {
+    e.preventDefault();
+    setEditSaving(true);
+    setEditError("");
+
+    try {
+      const name = editName.trim();
+      if (!name) {
+        setEditError("Введіть імʼя");
+        return;
+      }
+
+      const slug = editSlug.trim();
+      if (!slug) {
+        setEditError("Slug обовʼязковий");
+        return;
+      }
+
+      if (!editEmoji) {
+        setEditError("Emoji обовʼязковий");
+        return;
+      }
+
+      const pwd =
+        (typeof window !== "undefined" ? getSessionPassword() : null) ??
+        storedPassword ??
+        "";
+      if (!pwd) {
+        setEditError("Сесію втрачено. Увійдіть знову.");
+        return;
+      }
+
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": pwd,
+        },
+        body: JSON.stringify({
+          name,
+          slug,
+          emoji: editEmoji,
+          telegram_username: editTelegramUsername.trim() || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+
+      const updated = data as Partial<AdminUser> & {
+        telegram_username?: string | null;
+        name: string;
+        slug: string;
+        emoji: string;
+      };
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? {
+                ...u,
+                name: updated.name,
+                slug: updated.slug,
+                emoji: updated.emoji,
+                telegram_username:
+                  updated.telegram_username != null
+                    ? updated.telegram_username
+                    : u.telegram_username ?? null,
+              }
+            : u
+        )
+      );
+
+      const newSlug = updated.slug;
+      const oldSlug = editOriginalSlug;
+      if (newSlug !== oldSlug) {
+        setSlugWarnings((prev) => ({
+          ...prev,
+          [user.id]: { oldSlug, newSlug },
+        }));
+      } else {
+        setSlugWarnings((prev) => {
+          const copy = { ...prev };
+          delete copy[user.id];
+          return copy;
+        });
+      }
+
+      setEditingUserId(null);
+      setLastSavedUserId(user.id);
+      setTimeout(() => {
+        setLastSavedUserId((cur) => (cur === user.id ? null : cur));
+      }, 2500);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Помилка";
+      setEditError(msg);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // Weekly/best/penalty stats computed on client by fetching progress per user
   const [statsLoading, setStatsLoading] = useState(false);
   const [totalCheckinsResolved, setTotalCheckinsResolved] = useState<number>(0);
   const [bestWeek, setBestWeek] = useState<AdminUser | null>(null);
   const [whoMissedToday, setWhoMissedToday] = useState<AdminUser[]>([]);
+  const [telegramTestLoading, setTelegramTestLoading] = useState(false);
+  const [telegramTestResult, setTelegramTestResult] = useState<string>("");
+
+  const runTelegramCronTest = async (path: string) => {
+    setTelegramTestLoading(true);
+    setTelegramTestResult("");
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { ...(adminHeader ?? {}), "x-admin-password": storedPassword ?? "" },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      setTelegramTestResult(`OK: повідомлення надіслано (${path})`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Помилка відправки";
+      setTelegramTestResult(msg);
+      console.error("[Telegram Cron Test]", e);
+    } finally {
+      setTelegramTestLoading(false);
+    }
+  };
 
   const computeStats = async () => {
     setStatsLoading(true);
@@ -385,33 +536,163 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                {users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-semibold truncate">
-                        {u.emoji} {u.name}
+                {users.map((u) => {
+                  const isEditing = editingUserId === u.id;
+                  const warn = slugWarnings[u.id];
+                  const showSaved = lastSavedUserId === u.id;
+
+                  if (isEditing) {
+                    return (
+                      <form
+                        key={u.id}
+                        onSubmit={(e) => handleEditSave(e, u)}
+                        className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2 space-y-3"
+                      >
+                        <div className="text-xs text-white/80">
+                          ✏️ Редагування
+                        </div>
+
+                        <Input
+                          placeholder="Імʼя"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-white/40 whitespace-nowrap max-w-[160px] truncate">
+                            push-ups-gamma.vercel.app/
+                          </span>
+                          <Input
+                            placeholder="Slug (латиницею, напр. artem)"
+                            value={editSlug}
+                            onChange={(e) => setEditSlug(slugify(e.target.value))}
+                            className="flex-1 w-auto min-w-0"
+                          />
+                        </div>
+
+                        <Input
+                          placeholder="Telegram username (без @)"
+                          value={editTelegramUsername}
+                          onChange={(e) =>
+                            setEditTelegramUsername(e.target.value)
+                          }
+                        />
+
+                        <div>
+                          <div className="text-xs text-white mb-2">Emoji</div>
+                          <div className="flex flex-wrap gap-2">
+                            {EMOJIS.map((em) => (
+                              <button
+                                key={em}
+                                type="button"
+                                onClick={() => setEditEmoji(em)}
+                                className={[
+                                  "w-10 h-10 rounded-xl border transition-colors",
+                                  editEmoji === em
+                                    ? "border-[#22c55e] bg-[#22c55e]/15"
+                                    : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]",
+                                ].join(" ")}
+                                aria-label={`Обрати ${em}`}
+                              >
+                                <span className="text-lg">{em}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {editError && (
+                          <div className="text-sm text-red-300">{editError}</div>
+                        )}
+
+                        {editSaving ? (
+                          <div className="text-xs text-white/60">Зберігаємо...</div>
+                        ) : null}
+
+                        <div className="flex items-center gap-2">
+                          <Button type="submit" disabled={loading || editSaving}>
+                            Зберегти ✅
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={loading || editSaving}
+                            onClick={() => {
+                              setEditingUserId(null);
+                              setEditError("");
+                            }}
+                          >
+                            Скасувати ❌
+                          </Button>
+                        </div>
+                      </form>
+                    );
+                  }
+
+                  return (
+                    <div key={u.id} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate">
+                            {u.emoji} {u.name}
+                          </div>
+                          <div className="text-xs text-white/50 truncate">
+                            @{u.slug}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingUserId(u.id);
+                              setLastSavedUserId(null);
+                              setEditName(u.name);
+                              setEditSlug(u.slug);
+                              setEditTelegramUsername(u.telegram_username ?? "");
+                              setEditEmoji(u.emoji as (typeof EMOJIS)[number]);
+                              setEditOriginalSlug(u.slug);
+                              setEditError("");
+                            }}
+                            disabled={loading}
+                            aria-label="Редагувати учасника"
+                          >
+                            ✏️
+                          </Button>
+
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteUser(u.id)}
+                            disabled={loading}
+                            aria-label="Видалити учасника"
+                          >
+                            ⛔
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-xs text-white/50 truncate">
-                        @{u.slug}
-                      </div>
+
+                      {showSaved && (
+                        <div className="text-xs text-[#22c55e]">
+                          Збережено ✅
+                        </div>
+                      )}
+
+                      {warn && (
+                        <div className="text-xs text-[#f59e0b] leading-snug whitespace-pre-line">
+                          ⚠️ Слог змінено! Стара посилання /{warn.oldSlug} більше не працює.
+                          <br />
+                          Нова: /{warn.newSlug}
+                        </div>
+                      )}
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteUser(u.id)}
-                      disabled={loading}
-                      aria-label="Видалити учасника"
-                    >
-                      ⛔
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {users.length === 0 && (
-              <div className="text-sm text-white">Поки що немає учасників.</div>
+                  <div className="text-sm text-white">
+                    Поки що немає учасників.
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -468,6 +749,20 @@ export default function AdminPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-white mb-2">
+                    Telegram username (без @)
+                  </div>
+                  <Input
+                    placeholder="Напр. andriy_go"
+                    value={newTelegramUsername}
+                    onChange={(e) =>
+                      setNewTelegramUsername(e.target.value)
+                    }
+                    className="w-full"
+                  />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -564,6 +859,47 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
+          <CardContent className="p-5">
+            <div className="text-sm text-white mb-3">Telegram сповіщення</div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={telegramTestLoading}
+                onClick={() => runTelegramCronTest("/api/cron/morning")}
+              >
+                🌅 Тест ранкового (7:00)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={telegramTestLoading}
+                onClick={() => runTelegramCronTest("/api/cron/midday")}
+              >
+                ☀️ Тест денного (14:00)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={telegramTestLoading}
+                onClick={() => runTelegramCronTest("/api/cron/evening")}
+              >
+                🌙 Тест вечірнього (22:00)
+              </Button>
+            </div>
+
+            {telegramTestLoading ? (
+              <div className="mt-3 text-xs text-white/70">Відправляємо...</div>
+            ) : telegramTestResult ? (
+              <div className="mt-3 text-xs text-white/80">
+                {telegramTestResult}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

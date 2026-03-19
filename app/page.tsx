@@ -16,7 +16,7 @@ type DashboardUser = {
   streak: number;
   penaltyLevel: 0 | 1 | 2 | 3;
   missedDays: number;
-  progressPct: number;
+  progressPct: number | null;
 };
 
 const CREW_START_COUNT = 25;
@@ -105,7 +105,6 @@ export default function HomePage() {
               <span className="bg-gradient-to-r from-[#22c55e] via-[#f97316] to-[#f59e0b] bg-clip-text text-transparent">
                 PUSH-UPS CREW
               </span>
-              <span className="text-white ml-2">—</span>
             </div>
             <div className="mt-1 text-sm text-[#71717a]">Отжуманія 💪</div>
           </div>

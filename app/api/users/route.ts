@@ -41,7 +41,6 @@ export async function GET() {
     const startUTC = new Date(`${startStr}T00:00:00.000Z`);
     const diffMs = todayUTC.getTime() - startUTC.getTime();
     const diffDays = diffMs < 0 ? 0 : Math.floor(diffMs / 86400000);
-    const elapsedDays = diffDays + 1;
     const pushupsToday = PUSHUPS_START_COUNT + diffDays;
 
     const users = await getUsers();
@@ -50,14 +49,32 @@ export async function GET() {
       users.map(async (u) => {
         const checkins = await getCheckinsByUser(u.id);
         const checkedInToday = checkins.some((c) => c.date === todayStr);
+
+        const createdStr = u.created_at.toISOString().slice(0, 10);
+        const createdUTC = new Date(`${createdStr}T00:00:00.000Z`);
+        const daysSinceRegistrationRaw =
+          Math.floor((todayUTC.getTime() - createdUTC.getTime()) / 86400000) +
+          1;
+        const daysSinceRegistration = Number.isFinite(
+          daysSinceRegistrationRaw
+        )
+          ? Math.max(1, daysSinceRegistrationRaw)
+          : 1;
+
         const completedDays = checkins.filter(
-          (c) => c.date >= startStr && c.date <= todayStr
+          (c) => c.date >= createdStr && c.date <= todayStr
         ).length;
 
         const progressPct =
-          elapsedDays > 0
-            ? Math.round((completedDays / elapsedDays) * 100)
-            : 0;
+          daysSinceRegistration < 3
+            ? null
+            : Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round((completedDays / daysSinceRegistration) * 100)
+                )
+              );
 
         const penalty = await getPenaltyStatus(u.id, u.created_at);
 
@@ -91,11 +108,12 @@ export async function POST(request: NextRequest) {
     const name = (body?.name as string | undefined)?.trim();
     const slug = (body?.slug as string | undefined)?.trim() || (name ? slugFromName(name) : "");
     const emoji = ((body?.emoji as string | undefined) ?? "💪").trim();
+    const telegram_username = (body?.telegram_username as string | undefined)?.trim() || null;
 
     if (!name) return NextResponse.json({ error: "Потрібне ім'я" }, { status: 400 });
     if (!slug) return NextResponse.json({ error: "Вкажіть slug або ім'я латиницею" }, { status: 400 });
 
-    const user = await createUser({ name, slug, emoji });
+    const user = await createUser({ name, slug, emoji, telegram_username });
     return NextResponse.json(user);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося створити учасника";

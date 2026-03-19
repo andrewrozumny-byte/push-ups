@@ -11,7 +11,7 @@ type DashboardUser = {
   checkedInToday: boolean;
   streak: number;
   penaltyLevel: 0 | 1 | 2 | 3;
-  progressPct: number;
+  progressPct: number | null;
 };
 
 type UserCardProps = {
@@ -23,7 +23,8 @@ function clamp(n: number, min: number, max: number) {
 }
 
 export function UserCard({ user }: UserCardProps) {
-  const progress = clamp(user.progressPct ?? 0, 0, 100);
+  const progressPct = user.progressPct;
+  const progress = progressPct == null ? 0 : clamp(progressPct, 0, 100);
   const done = user.checkedInToday;
 
   const outer = cn(
@@ -40,7 +41,7 @@ export function UserCard({ user }: UserCardProps) {
         className={cn(
           "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4",
           done
-            ? "border-l-2 border-l-[#22c55e] shadow-[0_0_18px_rgba(34,197,94,0.14)]"
+            ? "border-l-2 border-l-[#22c55e] shadow-[0_0_28px_rgba(34,197,94,0.35)]"
             : "border-l-2 border-l-transparent opacity-90"
         )}
       >
@@ -55,13 +56,13 @@ export function UserCard({ user }: UserCardProps) {
               <div className="mt-1 flex items-center gap-2 text-xs text-[#71717a]">
                 <span
                   className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 font-semibold",
+                    "inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold",
                     done
                       ? "border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e]"
                       : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-[#71717a]"
                   )}
                 >
-                  {done ? "✅" : "⏳"}
+                  {done ? "Відмітився ✅" : "⏳ Не відмітився"}
                 </span>
               </div>
             </div>
@@ -81,19 +82,28 @@ export function UserCard({ user }: UserCardProps) {
         </div>
 
         <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-[#71717a]">
-            <span className="text-white/70">Прогрес</span>
-            <span className="text-white/70">{progress}%</span>
-          </div>
-          <div className="mt-2 h-2.5 w-full rounded-full bg-[#1e1e1e] overflow-hidden">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all",
-                done ? "bg-[#22c55e]" : "bg-[#22c55e]/70"
-              )}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          {progressPct == null ? (
+            <div className="flex items-center justify-between text-xs text-[#71717a]">
+              <span className="text-white/70">Прогрес</span>
+              <span className="text-white/70">Новий учасник 🌱</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-xs text-[#71717a]">
+                <span className="text-white/70">Прогрес</span>
+                <span className="text-white/70">{progress}%</span>
+              </div>
+              <div className="mt-2 h-2.5 w-full rounded-full bg-[#1e1e1e] overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    done ? "bg-[#22c55e]" : "bg-[#22c55e]/70"
+                  )}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Link>

@@ -1,4 +1,5 @@
 // Auto-generated - do not edit manually
+// Source: ./public/memes (sorted)
 export const MEMES: string[] = [
   "meme1.png",
   "meme2.jpg",
@@ -8,8 +9,8 @@ export const MEMES: string[] = [
   "meme6.jpeg",
   "meme7.jpeg",
   "meme8.webp",
-  "meme9.webp"
-]
+  "meme9.webp",
+];
 
 export function getDailyMeme(): string {
   const dayOfYear = Math.floor(

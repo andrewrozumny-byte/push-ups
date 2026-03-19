@@ -14,6 +14,7 @@ export type User = {
   name: string;
   emoji: string;
   slug: string;
+  telegram_username: string | null;
   created_at: Date;
 };
 
@@ -85,8 +86,15 @@ export async function initDb() {
       name VARCHAR(255) NOT NULL,
       emoji VARCHAR(32) NOT NULL DEFAULT '💪',
       slug VARCHAR(255) NOT NULL UNIQUE,
+      telegram_username VARCHAR(64),
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
+  `);
+
+  // For already-existing installations: add column if it wasn't created yet.
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(64)
   `);
 
   await query(`
@@ -111,6 +119,7 @@ type UserRow = {
   name: string;
   emoji: string;
   slug: string;
+  telegram_username: unknown;
   created_at: unknown;
 };
 
@@ -134,6 +143,7 @@ type UsersWithStatsRow = {
   name: string;
   emoji: string;
   slug: string;
+  telegram_username: unknown;
   created_at: unknown;
   total_checkins: number;
   last_checkin: string | null;
@@ -142,20 +152,22 @@ type UsersWithStatsRow = {
 
 export async function getUsers(): Promise<User[]> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, created_at FROM users ORDER BY name`
+    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users ORDER BY name`
   );
   return res.rows.map((row) => ({
     id: row.id,
     name: row.name,
     emoji: row.emoji,
     slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
     created_at: toDate(row.created_at),
   }));
 }
 
 export async function getUserById(id: string): Promise<User | null> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, created_at FROM users WHERE id = $1`,
+    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users WHERE id = $1`,
     [id]
   );
   const row = res.rows[0];
@@ -165,13 +177,15 @@ export async function getUserById(id: string): Promise<User | null> {
     name: row.name,
     emoji: row.emoji,
     slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
     created_at: toDate(row.created_at),
   };
 }
 
 export async function getUserBySlug(slug: string): Promise<User | null> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, created_at FROM users WHERE slug = $1`,
+    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users WHERE slug = $1`,
     [slug]
   );
   const row = res.rows[0];
@@ -181,6 +195,8 @@ export async function getUserBySlug(slug: string): Promise<User | null> {
     name: row.name,
     emoji: row.emoji,
     slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
     created_at: toDate(row.created_at),
   };
 }
@@ -189,13 +205,17 @@ export async function createUser(data: {
   name: string;
   emoji?: string;
   slug: string;
+  telegram_username?: string | null;
 }): Promise<User> {
   const emoji = data.emoji ?? "💪";
+  const telegram_username =
+    (data.telegram_username ?? null)?.toString().trim().replace(/^@/, "") ??
+    null;
   const res = await query<UserRow>(
-    `INSERT INTO users (name, emoji, slug)
-     VALUES ($1, $2, $3)
-     RETURNING id, name, emoji, slug, created_at`,
-    [data.name, emoji, data.slug]
+    `INSERT INTO users (name, emoji, slug, telegram_username)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, name, emoji, slug, telegram_username, created_at`,
+    [data.name, emoji, data.slug, telegram_username]
   );
   const row = res.rows[0];
   if (!row) {
@@ -206,6 +226,46 @@ export async function createUser(data: {
     name: row.name,
     emoji: row.emoji,
     slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
+    created_at: toDate(row.created_at),
+  };
+}
+
+export async function updateUser(
+  id: string,
+  data: {
+    name: string;
+    emoji: string;
+    slug: string;
+    telegram_username?: string | null;
+  }
+): Promise<User> {
+  const telegram_username =
+    (data.telegram_username ?? null)?.toString().trim().replace(/^@/, "") ??
+    null;
+
+  const res = await query<UserRow>(
+    `UPDATE users
+     SET name = $1,
+         emoji = $2,
+         slug = $3,
+         telegram_username = $4
+     WHERE id = $5
+     RETURNING id, name, emoji, slug, telegram_username, created_at`,
+    [data.name, data.emoji, data.slug, telegram_username, id]
+  );
+
+  const row = res.rows[0];
+  if (!row) throw new Error("USER_NOT_FOUND");
+
+  return {
+    id: row.id,
+    name: row.name,
+    emoji: row.emoji,
+    slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
     created_at: toDate(row.created_at),
   };
 }
@@ -330,6 +390,7 @@ export async function getUsersWithStats(): Promise<UserWithStats[]> {
       u.name,
       u.emoji,
       u.slug,
+      u.telegram_username,
       u.created_at,
       COALESCE(t.total_checkins, 0) AS total_checkins,
       lc.last_date AS last_checkin,
@@ -345,6 +406,8 @@ export async function getUsersWithStats(): Promise<UserWithStats[]> {
     name: row.name,
     emoji: row.emoji,
     slug: row.slug,
+    telegram_username:
+      row.telegram_username != null ? String(row.telegram_username) : null,
     created_at: toDate(row.created_at),
     total_checkins: row.total_checkins,
     streak_days: row.streak_days,

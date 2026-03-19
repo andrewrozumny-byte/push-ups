@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getDailyMeme } from "@/lib/memes";
 
 type DailyMotivator = {
-  photoUrl: string;
   quote: string;
   source?: string;
   alt?: string;
@@ -47,18 +47,18 @@ export function DailyMotivator() {
       <div className="w-full bg-[#111111] rounded-t-xl overflow-hidden">
         {!imageError ? (
           <img
-            src={motivator.photoUrl}
+            src={`/memes/${getDailyMeme()}`}
             alt={motivator.alt ?? "Мотивація дня"}
-            className="w-full max-h-[300px] object-contain"
+            className="w-full max-h-[350px] object-contain bg-[#111111]"
             loading="eager"
             onError={() => setImageError(true)}
           />
         ) : (
           <div
-            className="w-full max-h-[300px] h-[220px]"
+            className="w-full max-h-[350px] h-[220px] bg-[#111111]"
             style={{
               background:
-                "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)",
+                "linear-gradient(135deg, #111111 0%, #1e293b 50%, #0b1220 100%)",
             }}
             aria-hidden
           />

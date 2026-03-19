@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { CheckinModal } from "./CheckinModal";
 
 type ProfileCheckinButtonProps = {
   userId: string; // UUID in DB
   initialCheckedIn: boolean;
+  onModalClosed?: () => void; // Fires after successful check-in modal is closed
 };
 
 export function ProfileCheckinButton({
   userId,
   initialCheckedIn,
+  onModalClosed,
 }: ProfileCheckinButtonProps) {
   const [checkedIn, setCheckedIn] = useState(initialCheckedIn);
   const [loading, setLoading] = useState(false);
@@ -19,15 +21,22 @@ export function ProfileCheckinButton({
   const [modalOpen, setModalOpen] = useState(false);
   const [motivator, setMotivator] = useState("");
   const [pushups, setPushups] = useState(0);
+  const shouldRefetchAfterCloseRef = useRef(false);
 
   useEffect(() => {
     if (!modalOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setModalOpen(false);
+      if (e.key === "Escape") {
+        setModalOpen(false);
+        if (shouldRefetchAfterCloseRef.current) {
+          shouldRefetchAfterCloseRef.current = false;
+          onModalClosed?.();
+        }
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [modalOpen]);
+  }, [modalOpen, onModalClosed]);
 
   const runConfetti = () => {
     confetti({
@@ -66,6 +75,7 @@ export function ProfileCheckinButton({
       setMotivator(data.motivator || "");
 
       runConfetti();
+      shouldRefetchAfterCloseRef.current = true;
       setModalOpen(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Помилка";
@@ -74,6 +84,14 @@ export function ProfileCheckinButton({
       setLoading(false);
     }
   };
+
+  function handleModalClose() {
+    setModalOpen(false);
+    if (shouldRefetchAfterCloseRef.current) {
+      shouldRefetchAfterCloseRef.current = false;
+      onModalClosed?.();
+    }
+  }
 
   return (
     <>
@@ -102,7 +120,7 @@ export function ProfileCheckinButton({
 
       <CheckinModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleModalClose}
         motivator={motivator}
         pushups={pushups}
       />
