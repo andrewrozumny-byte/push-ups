@@ -32,7 +32,7 @@ export default async function ProfilePage({
 
   const [checkins, penalty] = await Promise.all([
     getCheckinsByUser(user.id),
-    getPenalty(user.id),
+    getPenalty(user.id, user.created_at),
   ]);
 
   const todayStr = todayISO();
@@ -73,7 +73,7 @@ export default async function ProfilePage({
   const progressPct = Math.round((totalDays / elapsedDays) * 100);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--background)] text-white overflow-x-hidden">
       <div className="px-4 pt-4">
         <Link
           href="/"

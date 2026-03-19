@@ -24,57 +24,76 @@ function clamp(n: number, min: number, max: number) {
 
 export function UserCard({ user }: UserCardProps) {
   const progress = clamp(user.progressPct ?? 0, 0, 100);
+  const done = user.checkedInToday;
 
-  const cardClass = cn(
-    "block rounded-2xl border p-4 transition-all",
-    user.checkedInToday
-      ? "border-[#22c55e]/70 bg-[#22c55e]/10 shadow-[0_0_0_1px_rgba(34,197,94,0.08)]"
-      : "border-white/10 bg-white/[0.02] opacity-80"
+  const outer = cn(
+    "block rounded-2xl p-[1px] transition-all",
+    "bg-gradient-to-r from-[#22c55e]/25 via-[#1e1e1e] to-[#f97316]/15",
+    done
+      ? "hover:shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_28px_rgba(34,197,94,0.14)]"
+      : "hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_28px_rgba(249,115,22,0.06)]"
   );
 
   return (
-    <Link href={`/${user.slug}`} className={cardClass}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="text-[26px] leading-none">{user.emoji}</div>
-          <div>
-            <div className="text-base sm:text-lg font-bold">{user.name}</div>
-            <div className="mt-1 flex items-center gap-2 text-sm">
-              <span
-                className={cn(
-                  user.checkedInToday ? "text-[#22c55e]" : "text-white/50"
-                )}
-              >
-                {user.checkedInToday ? "✅" : "⏳"}
-              </span>
-              <span className={cn(user.streak > 0 ? "text-[#fb923c]" : "text-white/50")}>
-                🔥 {user.streak}
-              </span>
+    <Link href={`/${user.slug}`} className={outer}>
+      <div
+        className={cn(
+          "rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4",
+          done
+            ? "border-l-2 border-l-[#22c55e] shadow-[0_0_18px_rgba(34,197,94,0.14)]"
+            : "border-l-2 border-l-transparent opacity-90"
+        )}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="text-[40px] leading-none shrink-0">{user.emoji}</div>
+
+            <div className="min-w-0">
+              <div className="text-base sm:text-lg font-bold text-white truncate">
+                {user.name}
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs text-[#71717a]">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 font-semibold",
+                    done
+                      ? "border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e]"
+                      : "border-[#1e1e1e] bg-[#1e1e1e]/40 text-[#71717a]"
+                  )}
+                >
+                  {done ? "✅" : "⏳"}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {user.penaltyLevel > 0 && (
-          <div className="shrink-0 text-sm font-semibold text-red-400 flex items-center gap-1">
-            <span>⚠️</span>
-            <span>Lv.{user.penaltyLevel}</span>
-          </div>
-        )}
-      </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-3 py-1 text-xs font-extrabold text-[#f97316]">
+              🔥 {user.streak}
+            </div>
 
-      <div className="mt-4">
-        <div className="flex items-center justify-between text-xs text-white/60">
-          <span>Прогрес</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="mt-2 h-2 w-full rounded-full bg-white/10 overflow-hidden">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all",
-              user.checkedInToday ? "bg-[#22c55e]" : "bg-[#f97316]"
+            {user.penaltyLevel > 0 && (
+              <div className="rounded-full border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-1 text-xs font-extrabold text-[#ef4444]">
+                ⚠️ Рівень {user.penaltyLevel}
+              </div>
             )}
-            style={{ width: `${progress}%` }}
-          />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs text-[#71717a]">
+            <span className="text-white/70">Прогрес</span>
+            <span className="text-white/70">{progress}%</span>
+          </div>
+          <div className="mt-2 h-2.5 w-full rounded-full bg-[#1e1e1e] overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                done ? "bg-[#22c55e]" : "bg-[#22c55e]/70"
+              )}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </div>
     </Link>

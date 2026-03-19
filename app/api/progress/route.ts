@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCheckinsByUser } from "@/lib/db";
+import { getCheckinsByUser, getUserById } from "@/lib/db";
 import { getPenaltyStatus } from "@/lib/penalties";
 
 export async function GET(request: NextRequest) {
@@ -11,9 +11,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const user = await getUserById(userId);
+    if (!user) {
+      return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
+    }
+
     const [checkins, penalty] = await Promise.all([
       getCheckinsByUser(userId),
-      getPenaltyStatus(userId),
+      getPenaltyStatus(userId, user.created_at),
     ]);
 
     return NextResponse.json({

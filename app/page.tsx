@@ -62,6 +62,12 @@ export default function HomePage() {
 
   const pushupsTodayRaw = users[0]?.pushupsToday ?? pushupsTodayFallback;
   const pushupsToday = Number.isFinite(pushupsTodayRaw) ? pushupsTodayRaw : CREW_START_COUNT;
+  const normGoal = 100;
+  const normProgress = Math.max(
+    0,
+    Math.min(100, Math.round((pushupsToday / normGoal) * 100))
+  );
+  const participantsCount = users.length;
 
   const fetchUsers = async () => {
     const controller = new AbortController();
@@ -88,30 +94,52 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] relative overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#22c55e] to-transparent" />
 
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-[34px] leading-[1.05] font-black tracking-tight">
-              💪 PUSH-UPS CREW
+          <div className="min-w-0">
+            <div className="text-[30px] sm:text-[34px] leading-[1.05] font-black tracking-tight">
+              <span className="text-white mr-2">💪</span>
+              <span className="bg-gradient-to-r from-[#22c55e] via-[#f97316] to-[#f59e0b] bg-clip-text text-transparent">
+                PUSH-UPS CREW
+              </span>
+              <span className="text-white ml-2">—</span>
             </div>
-            <div className="mt-2 text-sm text-white/70">
+            <div className="mt-1 text-sm text-[#71717a]">Отжуманія 💪</div>
+          </div>
+
+          <div className="shrink-0">
+            <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-xs text-[#71717a]">
               {formatTodayRuUkUkz(todayStr)}
             </div>
           </div>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs text-white/60">Сьогодні норма</div>
-            <div className="mt-1 flex items-end gap-2">
-              <div className="text-[48px] font-black leading-[1] text-[#22c55e]">
-                {pushupsToday}
+          <div className="rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4 transition-shadow hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_0_30px_rgba(34,197,94,0.08)]">
+            <div className="text-xs text-[#ffffff] font-semibold">Сьогодні норма</div>
+            <div className="mt-2 flex items-end gap-3">
+              <div className="relative inline-flex items-center">
+                <div className="absolute inset-0 -z-10 rounded-full bg-[#22c55e]/25 blur-2xl" />
+                <div className="text-[48px] font-black leading-[1] text-[#22c55e] drop-shadow-sm">
+                  {pushupsToday}
+                </div>
               </div>
-              <div className="pb-2 text-sm text-white/80 font-semibold">
-                віджимань
+              <div className="pb-2 text-sm text-white/90 font-semibold">віджимань</div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-[#71717a] mb-2">
+                <span>Прогрес до 100</span>
+                <span className="text-white/80">{normProgress}%</span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-[#1e1e1e] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#22c55e] transition-all"
+                  style={{ width: `${normProgress}%` }}
+                />
               </div>
             </div>
           </div>
@@ -122,20 +150,32 @@ export default function HomePage() {
 
       <main className="px-4 pb-10">
         <section className="mt-2">
-          <div className="text-sm text-white/60 mb-3">
-            Учасники
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="text-sm font-semibold text-white">Учасники</div>
+            <div className="inline-flex items-center rounded-full border border-[#1e1e1e] bg-[#111111]/60 px-3 py-1 text-xs text-[#71717a]">
+              Учасники ({loading ? "…" : participantsCount})
+            </div>
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-white/70 text-sm">
-              Завантаження...
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-[#1e1e1e] bg-[#111111]/60 p-4 animate-pulse"
+                />
+              ))}
             </div>
           ) : users.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-white/70 text-sm">
-              Немає учасників. Додайте їх у <Link href="/admin" className="underline">адмінці</Link>.
+            <div className="rounded-2xl border border-[#1e1e1e] bg-[#111111] p-4 text-white/80 text-sm">
+              Немає учасників. Додайте їх у{" "}
+              <Link href="/admin" className="underline">
+                адмінці
+              </Link>
+              .
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {users.map((u) => (
                 <UserCard key={u.id} user={u} />
               ))}
@@ -144,7 +184,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="px-4 pb-6 text-xs text-white/50">
+      <footer className="px-4 pb-6 text-xs text-[#71717a]">
         <Link href="/admin" className="hover:text-white transition-colors">
           Адмінка
         </Link>

@@ -4,9 +4,9 @@ import type { NextRequest } from "next/server";
 const ADMIN_COOKIE = "pushups_admin";
 
 function adminPasswordOk(request: NextRequest): boolean {
-  const expected = process.env.ADMIN_PASSWORD ?? "";
+  const expected = (process.env.ADMIN_PASSWORD ?? "").trim();
   if (!expected) return false;
-  const provided = request.headers.get("x-admin-password") ?? "";
+  const provided = (request.headers.get("x-admin-password") ?? "").trim();
   return provided === expected;
 }
 

@@ -11,6 +11,7 @@ type AdminUser = {
   name: string;
   emoji: string;
   slug: string;
+  created_at: string;
   checkedInToday: boolean;
   pushupsToday: number;
   streak: number;
@@ -20,6 +21,13 @@ type AdminUser = {
 };
 
 const EMOJIS = ["💪", "🔥", "⚡", "🎯", "🦾", "👊", "🏋️‍♂️", "🚀"] as const;
+
+function isCreatedToday(createdAt: string | Date | null | undefined, todayStr: string) {
+  if (!createdAt) return false;
+  const d = typeof createdAt === "string" ? new Date(createdAt) : createdAt;
+  if (Number.isNaN(d.getTime())) return false;
+  return d.toISOString().slice(0, 10) === todayStr;
+}
 
 function getAppUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
@@ -148,10 +156,8 @@ export default function AdminPage() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newName.trim();
-    if (!name) return;
-
-    if (!getAppUrl()) {
-      setError("Не задано NEXT_PUBLIC_APP_URL (потрібно для генерації посилань профілю).");
+    if (!name) {
+      setError("Введіть імʼя");
       return;
     }
 
@@ -161,29 +167,52 @@ export default function AdminPage() {
       return;
     }
 
+    // Read password at submit time so we always send current value (sessionStorage may have been set at login)
+    const pwd = (typeof window !== "undefined" ? getSessionPassword() : null) ?? storedPassword ?? "";
+    if (!pwd) {
+      setError("Сесію втрачено. Увійдіть знову.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const res = await fetch("/api/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...adminHeader },
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": pwd,
+        },
         body: JSON.stringify({ name, slug, emoji: newEmoji }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+
+      if (!res.ok) {
+        const errMsg = data?.error || `HTTP ${res.status}`;
+        console.error("[Admin Add User] Request failed:", res.status, data);
+        throw new Error(errMsg);
+      }
 
       setUsers((prev) => [...prev, data as AdminUser]);
-
       const addedSlug = (data as AdminUser).slug;
       const base = getAppUrl();
-      setProfileLink(`Посилання для ${name}: ${base}/${addedSlug}`);
+      setProfileLink(
+        base
+          ? `Посилання для ${name}: ${base}/${addedSlug}`
+          : `Профіль: /${addedSlug} (вкажіть NEXT_PUBLIC_APP_URL для повного посилання)`
+      );
 
       setNewName("");
       setNewSlug("");
       setNewEmoji("💪");
+
+      // Refresh full list so new user has enriched stats
+      await refreshUsers();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Помилка");
+      const msg = e instanceof Error ? e.message : "Помилка";
+      setError(msg);
+      console.error("[Admin Add User] Error:", e);
     } finally {
       setLoading(false);
     }
@@ -255,21 +284,31 @@ export default function AdminPage() {
       for (const pr of progressResults) {
         total += pr.checkins.length;
 
-        const weekSum = pr.checkins
-          .filter((c) => c.date >= startStr && c.date <= today)
-          .reduce((acc, c) => acc + (c.pushups_count ?? 0), 0);
+        const weekCheckins = pr.checkins.filter(
+          (c) => c.date >= startStr && c.date <= today
+        );
+        if (weekCheckins.length === 0) continue;
+
+        const weekSum = weekCheckins.reduce(
+          (acc, c) => acc + (c.pushups_count ?? 0),
+          0
+        );
 
         if (!best || weekSum > best.sum) best = { userId: pr.userId, sum: weekSum };
       }
 
       setTotalCheckinsResolved(total);
 
-      if (best) {
-        const bestUser = users.find((u) => u.id === best!.userId) ?? null;
-        setBestWeek(bestUser);
-      }
+      setBestWeek(() => {
+        if (!best) return null;
+        return users.find((u) => u.id === best!.userId) ?? null;
+      });
 
-      setWhoMissedToday(users.filter((u) => !u.checkedInToday));
+      setWhoMissedToday(
+        users.filter(
+          (u) => !u.checkedInToday && !isCreatedToday(u.created_at, today)
+        )
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Помилка");
     } finally {
@@ -286,12 +325,12 @@ export default function AdminPage() {
 
   if (!adminAuthed) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm bg-white/[0.03] border-white/10">
-          <CardContent className="p-5">
+      <div className="min-h-screen bg-[var(--background)] text-white flex items-center justify-center p-4">
+        <Card className="w-full max-w-sm bg-[#111111]/90 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition-shadow">
+          <CardContent className="p-5 text-white">
             <div className="text-center mb-4">
-              <div className="text-xl font-extrabold">Адмін доступ</div>
-              <div className="text-sm text-white/60 mt-1">
+              <div className="text-xl font-extrabold text-white">Адмін доступ</div>
+              <div className="text-sm text-white/80 mt-1">
                 Введіть пароль, щоб керувати учасниками
               </div>
             </div>
@@ -303,6 +342,7 @@ export default function AdminPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
               />
               {error && <div className="text-sm text-red-300">{error}</div>}
               <Button type="submit" className="w-full" disabled={loading}>
@@ -311,7 +351,7 @@ export default function AdminPage() {
             </form>
 
             <div className="mt-4 text-center">
-              <Link href="/" className="text-sm text-white/70 hover:text-white">
+              <Link href="/" className="text-sm text-white/80 hover:text-white">
                 ← Назад до списку
               </Link>
             </div>
@@ -322,12 +362,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--background)] text-white overflow-x-hidden">
       <div className="max-w-3xl mx-auto px-4 pt-6 pb-10 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-extrabold">Адмін панель</div>
-            <div className="text-sm text-white/60 mt-1">
+            <div className="text-sm text-white mt-1">
               Керування учасниками та перегляд штрафів
             </div>
           </div>
@@ -338,9 +378,9 @@ export default function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="bg-white/[0.03] border-white/10">
+          <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
             <CardContent className="p-5">
-              <div className="text-sm text-white/60 mb-3">
+              <div className="text-sm text-white mb-3">
                 Учасники ({users.length})
               </div>
 
@@ -348,7 +388,7 @@ export default function AdminPage() {
                 {users.map((u) => (
                   <div
                     key={u.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2"
                   >
                     <div className="min-w-0">
                       <div className="font-semibold truncate">
@@ -371,16 +411,20 @@ export default function AdminPage() {
                 ))}
 
                 {users.length === 0 && (
-                  <div className="text-sm text-white/60">Поки що немає учасників.</div>
+              <div className="text-sm text-white">Поки що немає учасників.</div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.03] border-white/10">
+          <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
             <CardContent className="p-5">
-              <div className="text-sm text-white/60 mb-3">Додати учасника</div>
-
+              <div className="text-sm text-white mb-3">Додати учасника</div>
+              {error && (
+                <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleAddUser} className="space-y-3">
                 <Input
                   placeholder="Імʼя"
@@ -392,14 +436,20 @@ export default function AdminPage() {
                   }}
                 />
 
-                <Input
-                  placeholder="Slug (латиницею, напр. artem)"
-                  value={newSlug}
-                  onChange={(e) => setNewSlug(slugify(e.target.value))}
-                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-white/40 whitespace-nowrap max-w-[160px] truncate">
+                    push-ups-gamma.vercel.app/
+                  </span>
+                  <Input
+                    placeholder="Slug (латиницею, напр. artem)"
+                    value={newSlug}
+                    onChange={(e) => setNewSlug(slugify(e.target.value))}
+                    className="flex-1 w-auto min-w-0"
+                  />
+                </div>
 
                 <div>
-                  <div className="text-xs text-white/60 mb-2">Emoji</div>
+                  <div className="text-xs text-white mb-2">Emoji</div>
                   <div className="flex flex-wrap gap-2">
                     {EMOJIS.map((em) => (
                       <button
@@ -426,8 +476,8 @@ export default function AdminPage() {
               </form>
 
               {profileLink && (
-                <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                  <div className="text-xs text-white/60">Посилання на профіль</div>
+                <div className="mt-4 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3">
+                  <div className="text-xs text-white">Посилання на профіль</div>
                   <div className="mt-1 text-sm font-semibold break-words">
                     {profileLink}
                   </div>
@@ -442,9 +492,9 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        <Card className="bg-white/[0.03] border-white/10">
+        <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
           <CardContent className="p-5">
-            <div className="text-sm text-white/60 mb-3">Штрафна дошка</div>
+            <div className="text-sm text-white mb-3">Штрафна дошка</div>
             <div className="space-y-2">
               {users
                 .filter((u) => u.penaltyLevel > 0)
@@ -468,34 +518,38 @@ export default function AdminPage() {
                 ))}
 
               {users.filter((u) => u.penaltyLevel > 0).length === 0 && (
-                <div className="text-sm text-white/60">Зараз немає штрафів.</div>
+                <div className="text-sm text-[#22c55e] font-semibold">
+                  ✅ Штрафів немає
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/[0.03] border-white/10">
+        <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
           <CardContent className="p-5">
-            <div className="text-sm text-white/60 mb-3">Загальна статистика</div>
+            <div className="text-sm text-white mb-3">Загальна статистика</div>
 
             {statsLoading ? (
-              <div className="text-sm text-white/70">Рахуємо...</div>
+              <div className="text-sm text-white/80">Рахуємо...</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                  <div className="text-xs text-white/60">Всього відміток</div>
-                  <div className="mt-1 text-2xl font-black">{totalCheckinsResolved}</div>
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                  <div className="text-xs text-white/60">Найкращий (тиждень)</div>
-                  <div className="mt-1 text-lg font-black">
-                    {bestWeek ? `${bestWeek.emoji} ${bestWeek.name}` : "—"}
+                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3">
+                  <div className="text-xs text-white">Всього відміток</div>
+                  <div className="mt-1 text-2xl font-black text-white">
+                    {totalCheckinsResolved}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 md:col-span-1">
-                  <div className="text-xs text-white/60">Не віджався сьогодні</div>
+                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3">
+                  <div className="text-xs text-white">Найкращий (тиждень)</div>
+                  <div className="mt-1 text-lg font-black text-white">
+                    {bestWeek ? `${bestWeek.emoji} ${bestWeek.name}` : "Немає даних"}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3 md:col-span-1">
+                  <div className="text-xs text-white">Не віджався сьогодні</div>
                   <div className="mt-2 space-y-1 text-sm">
                     {whoMissedToday.length === 0 ? (
                       <div className="text-white/70">Ніхто 😄</div>

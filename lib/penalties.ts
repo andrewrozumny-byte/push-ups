@@ -3,7 +3,7 @@
  * Можно расширить: штраф за день без отжиманий, накопление долга и т.д.
  */
 
-import { getCheckinsByUser } from "@/lib/db";
+import { getCheckinsByUser, PUSHUPS_START_DATE } from "@/lib/db";
 
 export const PENALTY_PER_MISSED_DAY = 1;
 
@@ -57,11 +57,30 @@ function addDaysUTC(date: Date, delta: number): Date {
  * - level: уровень штрафа по missedDays
  */
 export async function getPenaltyStatus(
-  userId: string
+  userId: string,
+  createdAt: Date | string
 ): Promise<PenaltyStatus> {
   // Важно: за "сегодня" и streak/missed считаем по одной и той же логике даты (UTC).
   const today = new Date();
   const todayStr = isoDateUTC(today);
+
+  const createdAtDate =
+    typeof createdAt === "string" ? new Date(createdAt) : createdAt;
+  if (Number.isNaN(createdAtDate.getTime())) {
+    // If created_at is broken for some reason, fall back to a “safe” value.
+    // It is better to under-report penalties than to over-report them.
+    return { level: 0, currentStreak: 0, missedDays: 0 };
+  }
+
+  // Calculation window:
+  // - missedDays should count ONLY days after user created_at date
+  // - AND it should never start before PUSHUPS_START_DATE
+  const startDate = new Date(PUSHUPS_START_DATE);
+  const createdDayUtc = new Date(isoDateUTC(createdAtDate) + "T00:00:00.000Z");
+  const createdDayPlus1Utc = addDaysUTC(createdDayUtc, 1);
+
+  const startCalcUtcMs = Math.max(startDate.getTime(), createdDayPlus1Utc.getTime());
+  const startCalcUtc = new Date(startCalcUtcMs);
 
   const checkins = await getCheckinsByUser(userId);
   const checkinDates = new Set(checkins.map((c) => c.date));
@@ -79,14 +98,25 @@ export async function getPenaltyStatus(
   // missedDays: считаем назад, пока нет чек-инов
   let missedDays = 0;
   let cursor = new Date(todayStr + "T00:00:00.000Z");
-  while (!checkinDates.has(isoDateUTC(cursor))) {
+
+  // Important: stop counting when we reach the first allowed day.
+  while (cursor.getTime() >= startCalcUtc.getTime()) {
+    const cursorStr = isoDateUTC(cursor);
+    if (checkinDates.has(cursorStr)) break;
     missedDays++;
     cursor = addDaysUTC(cursor, -1);
-    // страховка от бесконечного цикла при пустой истории
-    if (missedDays > 3650) break;
   }
 
-  const level = getPenaltyLevelFromMissedDays(missedDays);
+  // Minimum threshold: show penalty warning only after user is registered for at least 3 days.
+  const daysSinceRegistration =
+    Math.floor(
+      (new Date(todayStr + "T00:00:00.000Z").getTime() -
+        createdDayUtc.getTime()) /
+        86400000
+    ) + 1;
+
+  const computedLevel = getPenaltyLevelFromMissedDays(missedDays);
+  const level: 0 | 1 | 2 | 3 = daysSinceRegistration >= 3 ? computedLevel : 0;
 
   return { level, currentStreak, missedDays };
 }

@@ -22,11 +22,11 @@ function todayISO(): string {
 }
 
 function getAdminPassword(request: NextRequest): string {
-  return request.headers.get("x-admin-password") ?? "";
+  return (request.headers.get("x-admin-password") ?? "").trim();
 }
 
 function requireAdmin(request: NextRequest): string | null {
-  const expected = process.env.ADMIN_PASSWORD ?? "";
+  const expected = (process.env.ADMIN_PASSWORD ?? "").trim();
   if (!expected) return null;
   const provided = getAdminPassword(request);
   return provided === expected ? provided : null;
@@ -59,7 +59,7 @@ export async function GET() {
             ? Math.round((completedDays / elapsedDays) * 100)
             : 0;
 
-        const penalty = await getPenaltyStatus(u.id);
+        const penalty = await getPenaltyStatus(u.id, u.created_at);
 
         return {
           ...u,
