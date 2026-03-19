@@ -1,11 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { getPushupsForYmd } from "@/lib/db";
 import {
   addCalendarDays,
   endOfWeekSundayKyiv,
-  KYIV_TZ,
+  formatKyivYmdLongUk,
+  getPushupsNormForYmd,
   startOfWeekMondayKyiv,
-  utcInstantForKyivYmd,
 } from "@/lib/kyivDate";
 
 type ProfileProgressGridProps = {
@@ -14,13 +16,30 @@ type ProfileProgressGridProps = {
   days: number; // 30
 };
 
-function formatDateUk(dateStr: string) {
-  const t = utcInstantForKyivYmd(dateStr);
-  return t.toLocaleDateString("uk-UA", {
-    timeZone: KYIV_TZ,
-    day: "2-digit",
-    month: "short",
-  });
+function CellTooltip({
+  dateStr,
+  pushupsLabel,
+}: {
+  dateStr: string;
+  pushupsLabel: string;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-[min(240px,calc(100vw-2rem))] -translate-x-1/2"
+      role="tooltip"
+    >
+      <div className="rounded-lg bg-[#1a1a1a] px-3 py-2 text-center text-xs leading-snug text-white shadow-lg">
+        <div className="font-medium text-white/95">
+          {formatKyivYmdLongUk(dateStr)}
+        </div>
+        <div className="mt-1 text-white/90">{pushupsLabel}</div>
+      </div>
+      <div
+        className="mx-auto h-0 w-0 border-x-[7px] border-x-transparent border-t-[8px] border-t-[#1a1a1a]"
+        aria-hidden
+      />
+    </div>
+  );
 }
 
 export function ProfileProgressGrid({
@@ -28,6 +47,7 @@ export function ProfileProgressGrid({
   todayStr,
   days,
 }: ProfileProgressGridProps) {
+  const [hovered, setHovered] = useState<string | null>(null);
   const pastStartStr = addCalendarDays(todayStr, -(days - 1));
 
   const rangeStart = startOfWeekMondayKyiv(pastStartStr);
@@ -46,7 +66,7 @@ export function ProfileProgressGrid({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-semibold">Прогрес</div>
         <div className="text-xs text-white/60">Наведи — дата і норма</div>
       </div>
@@ -60,7 +80,7 @@ export function ProfileProgressGrid({
                 return (
                   <div
                     key={key}
-                    className="w-3.5 h-3.5 rounded-[3px] bg-transparent opacity-0"
+                    className="h-3.5 w-3.5 rounded-[3px] bg-transparent opacity-0"
                   />
                 );
               }
@@ -70,27 +90,40 @@ export function ProfileProgressGrid({
                 dateStr
               );
               const isFuture = dateStr > todayStr;
+              const expected = getPushupsNormForYmd(dateStr);
+              const doneCount = checkinByDate[dateStr];
+              const pushupsLabel =
+                doneCount != null
+                  ? `${doneCount} віджимань (виконано)`
+                  : `Норма: ${expected} віджимань`;
 
-              const expected = getPushupsForYmd(dateStr);
-
-              const title = `${formatDateUk(dateStr)} — ${expected} віджимань`;
+              const title = `${formatKyivYmdLongUk(dateStr)} — ${pushupsLabel}`;
 
               const cellClass = cn(
-                "w-3.5 h-3.5 rounded-[3px] border transition-colors",
+                "h-3.5 w-3.5 rounded-[3px] border transition-colors",
                 isFuture
-                  ? "bg-[#38bdf8]/40 border-[#38bdf8]/30"
+                  ? "border-[#38bdf8]/30 bg-[#38bdf8]/40"
                   : checked
-                    ? "bg-[#22c55e] border-[#22c55e]/70"
-                    : "bg-white/10 border-white/10"
+                    ? "border-[#22c55e]/70 bg-[#22c55e]"
+                    : "border-white/10 bg-white/10"
               );
 
               return (
                 <div
                   key={key}
-                  className={cellClass}
-                  title={title}
-                  aria-label={title}
-                />
+                  className="relative z-0 flex justify-center"
+                  onMouseEnter={() => setHovered(dateStr)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <div
+                    className={cellClass}
+                    title={title}
+                    aria-label={title}
+                  />
+                  {hovered === dateStr ? (
+                    <CellTooltip dateStr={dateStr} pushupsLabel={pushupsLabel} />
+                  ) : null}
+                </div>
               );
             })
           )}

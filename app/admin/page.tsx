@@ -453,10 +453,15 @@ export default function AdminPage() {
         return users.find((u) => u.id === best!.userId) ?? null;
       });
 
+      // Use Kyiv "today" + fresh checkin rows (not stale checkedInToday from users list).
       setWhoMissedToday(
-        users.filter(
-          (u) => !u.checkedInToday && !isCreatedToday(u.created_at, today)
-        )
+        users.filter((u) => {
+          const pr = progressResults.find((p) => p.userId === u.id);
+          const didToday = pr
+            ? pr.checkins.some((c) => c.date === today)
+            : u.checkedInToday;
+          return !didToday && !isCreatedToday(u.created_at, today);
+        })
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Помилка");
@@ -467,10 +472,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!adminAuthed) return;
-    // recompute once users loaded
-    computeStats();
+    void computeStats();
+    // Re-run when list or per-user check-in flags change (not only length).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminAuthed, users.length]);
+  }, [adminAuthed, users]);
 
   if (!adminAuthed) {
     return (
@@ -526,7 +531,7 @@ export default function AdminPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           <Card className="bg-[#111111]/70 border-[#1e1e1e] hover:shadow-[0_0_0_1px_rgba(34,197,94,0.12)] transition-shadow">
             <CardContent className="p-5">
               <div className="text-sm text-white mb-3">
@@ -628,17 +633,22 @@ export default function AdminPage() {
 
                   return (
                     <div key={u.id} className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2">
-                        <div className="min-w-0">
-                          <div className="font-semibold truncate">
-                            {u.emoji} {u.name}
+                      <div className="flex items-start justify-between gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-white break-words">
+                            <span className="mr-1.5" aria-hidden>
+                              {u.emoji}
+                            </span>
+                            {u.name}
                           </div>
-                          <div className="text-xs text-white/50 truncate">
-                            @{u.slug}
+                          <div className="mt-0.5 text-xs text-gray-400 break-all">
+                            {u.telegram_username
+                              ? `@${u.telegram_username.replace(/^@/, "")}`
+                              : `@${u.slug}`}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex shrink-0 items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -665,7 +675,7 @@ export default function AdminPage() {
                             disabled={loading}
                             aria-label="Видалити учасника"
                           >
-                            ⛔
+                            🗑️
                           </Button>
                         </div>
                       </div>
@@ -843,7 +853,7 @@ export default function AdminPage() {
 
                 <div className="rounded-xl border border-[#1e1e1e] bg-[#111111]/60 px-3 py-3 md:col-span-1">
                   <div className="text-xs text-white">Не віджався сьогодні</div>
-                  <div className="mt-2 space-y-1 text-sm">
+                  <div className="mt-2 max-h-[200px] space-y-1 overflow-y-auto text-sm pr-1 [scrollbar-width:thin]">
                     {whoMissedToday.length === 0 ? (
                       <div className="text-white/70">Ніхто 😄</div>
                     ) : (
@@ -864,10 +874,11 @@ export default function AdminPage() {
           <CardContent className="p-5">
             <div className="text-sm text-white mb-3">Telegram сповіщення</div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="flex flex-col gap-2">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full justify-center"
                 disabled={telegramTestLoading}
                 onClick={() => runTelegramCronTest("/api/cron/morning")}
               >
@@ -876,6 +887,7 @@ export default function AdminPage() {
               <Button
                 type="button"
                 variant="outline"
+                className="w-full justify-center"
                 disabled={telegramTestLoading}
                 onClick={() => runTelegramCronTest("/api/cron/midday")}
               >
@@ -884,6 +896,7 @@ export default function AdminPage() {
               <Button
                 type="button"
                 variant="outline"
+                className="w-full justify-center"
                 disabled={telegramTestLoading}
                 onClick={() => runTelegramCronTest("/api/cron/evening")}
               >

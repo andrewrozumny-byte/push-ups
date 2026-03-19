@@ -56,20 +56,40 @@ export default function HomePage() {
   const fetchUsers = async () => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
+    let keepLoadingForRetry = false;
 
     try {
       const res = await fetch("/api/users", {
         cache: "no-store",
         signal: controller.signal,
       });
+      const data = (await res.json()) as
+        | DashboardUser[]
+        | { error?: string; retry?: boolean };
+
+      if (
+        !res.ok &&
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        data.retry === true
+      ) {
+        keepLoadingForRetry = true;
+        window.setTimeout(() => {
+          void fetchUsers();
+        }, 2000);
+        return;
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as DashboardUser[];
-      setUsers(data);
+      setUsers(data as DashboardUser[]);
     } catch {
       // If refresh fails, keep the last good snapshot.
     } finally {
       clearTimeout(timer);
-      setLoading(false);
+      if (!keepLoadingForRetry) {
+        setLoading(false);
+      }
     }
   };
 

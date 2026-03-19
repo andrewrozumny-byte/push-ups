@@ -89,6 +89,15 @@ export async function GET() {
     return NextResponse.json(enriched, { headers: NO_STORE_HEADERS });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не вдалося завантажити учасників";
+    if (message.toLowerCase().includes("upstream database")) {
+      return NextResponse.json(
+        {
+          error: "Database warming up, please retry in a moment",
+          retry: true,
+        },
+        { status: 503, headers: NO_STORE_HEADERS }
+      );
+    }
     return NextResponse.json(
       { error: message },
       { status: 500, headers: NO_STORE_HEADERS }

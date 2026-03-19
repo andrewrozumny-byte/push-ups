@@ -62,10 +62,9 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   params?: unknown[]
 ): Promise<QueryResult<T>> {
   const maxRetries = 3;
-  let lastError: Error | null = null;
   const poolInstance = getPool();
 
-  for (let i = 0; i < maxRetries; i++) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const client = await poolInstance.connect();
       try {
@@ -75,18 +74,19 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
         client.release();
       }
     } catch (error) {
-      lastError =
-        error instanceof Error ? error : new Error(String(error));
-      console.warn(`DB attempt ${i + 1} failed:`, error);
-      if (i < maxRetries - 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 500 * Math.pow(2, i))
-        );
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn(`DB attempt ${attempt}/${maxRetries} failed:`, err.message);
+
+      if (attempt === maxRetries) {
+        throw error;
       }
+
+      // Wait before retry: 300ms → 600ms → 900ms (300 * attempt)
+      await new Promise((r) => setTimeout(r, 300 * attempt));
     }
   }
 
-  throw lastError ?? new Error("DB query failed after retries");
+  throw new Error("DB: max retries exceeded");
 }
 
 function toDate(value: unknown): Date {
