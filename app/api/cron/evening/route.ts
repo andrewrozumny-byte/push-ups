@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPushupsForDate, getUsers } from "@/lib/db";
 import {
+  formatKyivDate,
   formatProgressBar,
   getConsecutiveMisses,
   getTodayCheckins,
@@ -57,15 +58,12 @@ async function buildMissedLines(missed: TelegramUserLabel[]) {
   const lines: string[] = [];
   for (const u of missed) {
     const misses = await getConsecutiveMisses(u.userId);
-    const dayText =
-      misses >= 3
-        ? `${misses}й день підряд`
-        : `це вже ${misses}й день підряд`;
-    if (misses >= 3) {
-      lines.push(`- ${u.display} — ${dayText} 🚨 ШТРАФ!`);
-    } else {
-      lines.push(`- ${u.display} — ${dayText} ⚠️`);
-    }
+    const n = Math.max(1, misses);
+    const ordinal =
+      n === 1 ? "1-й день без відмітки" : `${n}-й день підряд`;
+    const suffix =
+      n >= 3 ? ` — ${ordinal} 🚨 ШТРАФ!` : ` — ${ordinal} ⚠️`;
+    lines.push(`- ${u.emoji} ${u.display}${suffix}`);
   }
   return lines.join("\n");
 }
@@ -76,6 +74,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const now = new Date();
+    const formattedDate = formatKyivDate(now);
+
     const [todayCheckins, todayMissed, weekProgress, monthProgress] =
       await Promise.all([
         getTodayCheckins(),
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
         getMonthProgress(),
       ]);
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = now.toISOString().slice(0, 10);
     const eligibleNotNewCount = (await getUsers()).filter((u) => {
       const createdStr = u.created_at.toISOString().slice(0, 10);
       return createdStr < todayStr;
@@ -96,35 +97,44 @@ export async function GET(request: NextRequest) {
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     const tomorrowPushups = getPushupsForDate(tomorrow);
 
-    let text = `🌙 <b>ПІДСУМОК ДНЯ!</b>\n\n`;
+    const progressBlock =
+      `\n📊 <b>Загальний прогрес crew:</b>\n` +
+      `Тиждень: ${formatProgressBar(weekProgress)}\n` +
+      `Місяць: ${formatProgressBar(monthProgress)}`;
+
+    const footer =
+      `\n\nЗавтра: <b>${tomorrowPushups} віджимань</b> 💪\n` +
+      `Бог дає сили на кожен день! 🙏`;
+
+    let body: string;
 
     if (allDone) {
-      text += `🏆 ІДЕАЛЬНИЙ ДЕНЬ! Всі відмітились!`;
+      body = `🏆 <b>ІДЕАЛЬНИЙ ДЕНЬ!</b> Усі відмітились!`;
     } else {
       const goodBlock =
-        `✅ Молодці сьогодні:\n` +
+        `✅ <b>Молодці сьогодні:</b>\n` +
         (todayCheckins.length > 0
           ? todayCheckins
               .map((x) => `- ${buildTagLine(x)} — ${x.pushups} 💪`)
               .join("\n")
           : "- (немає)");
 
-      const missedBlock =
-        `❌ Не відмітились сьогодні:\n${await buildMissedLines(
-          todayMissed
-        )}`;
+      const missedLines =
+        todayMissed.length > 0
+          ? await buildMissedLines(todayMissed)
+          : "- (немає)";
 
-      const progressBlock =
-        `\n📊 <b>Загальний прогрес crew:</b>\n` +
-        `Тиждень: ${formatProgressBar(weekProgress)}\n` +
-        `Місяць: ${formatProgressBar(monthProgress)}`;
+      const missedBlock = `❌ <b>Не відмітились сьогодні:</b>\n${missedLines}`;
 
-      text = text + goodBlock + "\n" + missedBlock + progressBlock;
+      body = `${goodBlock}\n\n${missedBlock}`;
     }
 
-    text +=
-      `\n\nЗавтра: <b>${tomorrowPushups} віджимань</b> 💪\n` +
-      `Бог дає сили на кожен день! 🙏`;
+    const text =
+      `🌙 <b>ПІДСУМОК ДНЯ!</b>\n` +
+      `📅 ${formattedDate}\n\n` +
+      body +
+      progressBlock +
+      footer;
 
     await sendTelegramMessage(text);
     return NextResponse.json({ ok: true });

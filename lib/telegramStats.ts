@@ -29,12 +29,13 @@ function daysInclusive(fromStr: string, toStr: string): number {
   return Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
 }
 
+/** ASCII-style bar for Telegram (only █ and ░ — avoids box-drawing glyphs that render as □). */
 export function formatProgressBar(percent: number): string {
-  const clamped = Math.max(0, Math.min(100, percent));
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   const total = 10;
   const filled = Math.max(0, Math.min(total, Math.round(clamped / 10)));
   const empty = total - filled;
-  return `${"█".repeat(filled)}${"░".repeat(empty)} ${clamped}%`;
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}] ${clamped}%`;
 }
 
 function toLabel(user: User): TelegramUserLabel {

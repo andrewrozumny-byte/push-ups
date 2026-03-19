@@ -51,7 +51,7 @@ function buildMissedList(items: TelegramUserLabel[], startIndex = 0): string {
     .map((x, i) => {
       const idx = startIndex + i;
       const msg = idx % 2 === 0 ? "давай, ще не пізно!" : "підгазуй! 💨";
-      return `- ${x.display} — ${msg}`;
+      return `- ${x.emoji} ${x.display} — ${msg}`;
     })
     .join("\n");
 }
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const today = new Date();
-    void formatKyivDate(today);
+    const formattedDate = formatKyivDate(today);
 
     const [todayCheckins, todayMissed] = await Promise.all([
       getTodayCheckins(),
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     const allDone = eligibleNotNewCount > 0 && todayMissed.length === 0;
 
-    let text = `☀️ <b>ДЕННА ПЕРЕВІРКА!</b>\n\n`;
+    let text = `☀️ <b>ДЕННА ПЕРЕВІРКА!</b>\n📅 ${formattedDate}\n\n`;
 
     if (allDone) {
       text += `🎉 УСІ ВЖЕ ВІДМІТИЛИСЬ! Crew рвуть! 💪`;
@@ -87,16 +87,16 @@ export async function GET(request: NextRequest) {
     }
 
     const doneBlock =
-      `✅ Вже відмітились (молодці!):\n` +
+      `✅ <b>Вже відмітились (молодці!):</b>\n` +
       (todayCheckins.length > 0
         ? todayCheckins
-            .map((x) => `- ${x.emoji} ${x.display}`)
+            .map((x) => `- ${x.emoji} ${x.display} — ${x.pushups} 💪`)
             .join("\n")
         : "- (немає)");
 
     const missedBlock =
       todayMissed.length > 0
-        ? `\n⏳ Ще не відмітились:\n${buildMissedList(todayMissed)}`
+        ? `\n⏳ <b>Ще не відмітились:</b>\n${buildMissedList(todayMissed)}`
         : "";
 
     text += doneBlock + missedBlock;

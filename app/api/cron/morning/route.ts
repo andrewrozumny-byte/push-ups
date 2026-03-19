@@ -47,7 +47,7 @@ async function sendTelegramMessage(text: string) {
 }
 
 function buildBulletList(items: TelegramUserLabel[]): string {
-  return items.map((x) => `- ${x.display}`).join("\n");
+  return items.map((x) => `- ${x.emoji} ${x.display}`).join("\n");
 }
 
 export async function GET(request: NextRequest) {
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
 
     const missedBlock =
       missedYesterday.length > 0
-        ? `\n😬 Вчора не відмітились:\n${buildBulletList(missedYesterday)}`
-        : `\n🏆 Вчора всі відмітились! Легенди!`;
+        ? `\n😬 <b>Вчора не відмітились:</b>\n${buildBulletList(missedYesterday)}`
+        : `\n🏆 <b>Вчора всі відмітились!</b> Легенди!`;
 
     const text =
       `🌅 <b>ДОБРОГО РАНКУ, CREW!</b>\n` +
