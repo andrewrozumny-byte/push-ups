@@ -128,7 +128,7 @@ export function PhoneFrameShell({ children }: { children: React.ReactNode }) {
           className={cn(
             "flex w-full flex-col",
             showFrame
-              ? "h-[844px] w-[390px] max-w-[calc(100vw-2rem)] shrink-0 rounded-[50px] bg-[linear-gradient(145deg,#2a2a2a,#1a1a1a)] p-[3px] shadow-2xl shadow-black/50"
+              ? "h-[932px] w-[430px] max-w-[calc(100vw-2rem)] shrink-0 rounded-[50px] bg-[linear-gradient(145deg,#2a2a2a,#1a1a1a)] p-[3px] shadow-2xl shadow-black/50"
               : "min-h-0 flex-1"
           )}
         >
@@ -145,7 +145,7 @@ export function PhoneFrameShell({ children }: { children: React.ReactNode }) {
               className={cn(
                 "min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
                 showFrame
-                  ? "mx-2 mb-1 mt-0 rounded-[42px] shadow-[inset_0_0_28px_rgba(0,0,0,0.45)]"
+                  ? "mx-2 mb-1 mt-0 rounded-[46px] shadow-[inset_0_0_28px_rgba(0,0,0,0.45)]"
                   : "w-full min-h-0 flex-1"
               )}
             >
