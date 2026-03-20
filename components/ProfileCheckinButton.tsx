@@ -19,9 +19,24 @@ export function ProfileCheckinButton({
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [motivator, setMotivator] = useState("");
   const [pushups, setPushups] = useState(0);
   const shouldRefetchAfterCloseRef = useRef(false);
+
+  useEffect(() => {
+    if (!showConfirm) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowConfirm(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showConfirm]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -55,8 +70,14 @@ export function ProfileCheckinButton({
     }, 250);
   };
 
-  const handleClick = async () => {
+  const handleOpenConfirm = () => {
     if (checkedIn || loading) return;
+    setShowConfirm(true);
+  };
+
+  const performCheckin = async () => {
+    if (checkedIn || loading) return;
+    setShowConfirm(false);
     setLoading(true);
     try {
       const res = await fetch("/api/checkin", {
@@ -97,7 +118,7 @@ export function ProfileCheckinButton({
     <>
       <button
         type="button"
-        onClick={handleClick}
+        onClick={handleOpenConfirm}
         disabled={checkedIn || loading}
         className={[
           "w-full rounded-2xl px-4 sm:px-6 text-center font-extrabold",
@@ -117,6 +138,49 @@ export function ProfileCheckinButton({
             ? "Вже віджався сьогодні ✅"
             : "Я віджався 💪"}
       </button>
+
+      {showConfirm ? (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[rgba(0,0,0,0.8)] cursor-default border-0 p-0 w-full h-full"
+            onClick={() => setShowConfirm(false)}
+            aria-label="Закрити"
+          />
+          <div
+            className="relative z-10 w-full max-w-md rounded-2xl border border-[#22c55e]/30 bg-[#111111] p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkin-confirm-title"
+          >
+            <h2
+              id="checkin-confirm-title"
+              className="text-xl font-bold text-white text-center"
+            >
+              Відос завантажив? 📱
+            </h2>
+            <p className="mt-1 text-center text-sm text-gray-400">
+              Не забув скинути кружечок в групу?
+            </p>
+            <button
+              type="button"
+              onClick={() => void performCheckin()}
+              disabled={loading}
+              className="mt-6 w-full rounded-xl bg-[#14532d] py-4 text-center font-bold text-white transition-opacity hover:opacity-95 disabled:opacity-60"
+            >
+              ✅ Так, все зробив!
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              disabled={loading}
+              className="mt-2 w-full rounded-xl bg-[#1a1a1a] py-3 text-center font-semibold text-gray-400 transition-colors hover:bg-[#222] hover:text-gray-300 disabled:opacity-60"
+            >
+              ❌ Ой, забув!
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <CheckinModal
         open={modalOpen}
