@@ -2,7 +2,7 @@
  * Kyiv-time Sabbath window: from Friday sunset through Saturday sunset (approximate).
  */
 
-import { KYIV_TZ, getKyivDate, utcInstantForKyivYmd } from "./kyivDate";
+import { KYIV_TZ } from "./kyivDate";
 
 const WEEKDAYS_LONG_EN = [
   "Sunday",
@@ -116,22 +116,6 @@ export function isFridayPastSunset(d: Date = new Date()): boolean {
   const { hour, minute } = kyivHourMinute(d);
   const nowM = minutesSinceMidnight(hour, minute);
   return nowM >= sunsetM;
-}
-
-/** ISO week number (1–53) for the Kyiv calendar day of `d`. */
-export function getIsoWeekNumberKyiv(d: Date = new Date()): number {
-  const ymd = getKyivDate(d);
-  const x = utcInstantForKyivYmd(ymd);
-  const t = new Date(x);
-  const utc = new Date(
-    Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate())
-  );
-  const dayNum = utc.getUTCDay() || 7;
-  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-  return Math.ceil(
-    ((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-  );
 }
 
 export const SABBATH_VERSES_SATURDAY_MORNING = [

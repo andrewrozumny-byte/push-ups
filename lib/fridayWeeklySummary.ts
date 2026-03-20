@@ -1,22 +1,13 @@
 import { getCheckinsByUser, type User } from "@/lib/db";
-import {
-  addCalendarDays,
-  diffCalendarDays,
-  endOfWeekSundayKyiv,
-  getKyivDate,
-  startOfWeekMondayKyiv,
-} from "@/lib/kyivDate";
-import {
-  escapeTelegramHtmlText,
-  getIsoWeekNumberKyiv,
-  getSabbathTimes,
-} from "@/lib/sabbath";
+import { getCrewWeekRangeForKyivDate } from "@/lib/daily";
+import { addCalendarDays, diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import { escapeTelegramHtmlText, getSabbathTimes } from "@/lib/sabbath";
 
 export type WeekUserStat = {
   user: User;
-  /** Distinct check-in days Mon..today within this ISO week (shown as X/7). */
+  /** Distinct check-in days from crew week start through today (shown as X/7). */
   checkedDays: number;
-  /** Had check-in on every calendar day Mon..today in this week. */
+  /** Check-in on every calendar day from crew week start through today. */
   perfectSoFar: boolean;
 };
 
@@ -57,9 +48,8 @@ export async function buildFridayWeeklySabbathMessage(
   now: Date = new Date()
 ): Promise<string> {
   const todayStr = getKyivDate(now);
-  const weekStart = startOfWeekMondayKyiv(todayStr);
-  const weekEnd = endOfWeekSundayKyiv(todayStr);
-  const weekNumber = getIsoWeekNumberKyiv(now);
+  const { weekNumber, rangeStart: weekStart, rangeEnd: weekEnd } =
+    getCrewWeekRangeForKyivDate(now);
   const sunsetTime = getSabbathTimes(now).end;
 
   const daysElapsed = Math.min(
@@ -113,7 +103,7 @@ export async function buildFridayWeeklySabbathMessage(
   return (
     `🌇 <b>ТИЖНЕВИЙ ПІДСУМОК!</b>\n` +
     `📅 Тиждень <b>${weekNumber}</b> (${weekStart} … ${weekEnd})\n\n` +
-    `✅ <b>Відмінники тижня (без пропусків з понеділка):</b>\n` +
+    `✅ <b>Відмінники тижня (без пропусків з початку тижня групи):</b>\n` +
     `${starsBlock}\n\n` +
     `📊 <b>Статистика тижня:</b>\n` +
     `${statsBlock}\n\n` +
