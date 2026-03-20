@@ -62,6 +62,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
   }
 
+  const preview =
+    request.nextUrl.searchParams.get("preview") === "true" ||
+    request.nextUrl.searchParams.get("preview") === "1";
+
   try {
     const today = new Date();
     const formattedDate = formatKyivDate(today);
@@ -83,6 +87,9 @@ export async function GET(request: NextRequest) {
 
     if (allDone) {
       text += `🎉 УСІ ВЖЕ ВІДМІТИЛИСЬ! Crew рвуть! 💪`;
+      if (preview) {
+        return NextResponse.json({ ok: true, message: text });
+      }
       await sendTelegramMessage(text);
       return NextResponse.json({ ok: true });
     }
@@ -102,6 +109,9 @@ export async function GET(request: NextRequest) {
 
     text += doneBlock + missedBlock;
 
+    if (preview) {
+      return NextResponse.json({ ok: true, message: text });
+    }
     await sendTelegramMessage(text);
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -94,10 +94,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
   }
 
+  const preview =
+    request.nextUrl.searchParams.get("preview") === "true" ||
+    request.nextUrl.searchParams.get("preview") === "1";
+
   try {
     const now = new Date();
     const formattedDate = formatKyivDate(now);
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+    const appUrlRaw = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const baseUrl = appUrlRaw.replace(/\/$/, "");
 
     const pushupsToday = getPushupsForDate(new Date());
     const remainingDays = Math.max(0, 100 - pushupsToday);
@@ -110,22 +115,22 @@ export async function GET(request: NextRequest) {
     const missedYesterday = await getYesterdayMissed();
 
     const users = await getUsersWithCheckinTokens();
-    const inline_keyboard =
-      baseUrl.length > 0
-        ? users
-            .filter((u) => u.checkin_token)
-            .map((user) => {
-              const label = `${user.emoji} ${user.name} — Відмітитись! 💪`;
-              const text =
-                label.length > 64 ? `${label.slice(0, 61)}…` : label;
-              return [
-                {
-                  text,
-                  url: `${baseUrl}/magic/${encodeURIComponent(user.slug)}?token=${encodeURIComponent(user.checkin_token!)}`,
-                },
-              ];
-            })
-        : [];
+    console.log(
+      "Users with tokens:",
+      users.map((u) => ({ name: u.name, hasToken: !!u.checkin_token }))
+    );
+
+    void getDayIndex();
+    const inline_keyboard: InlineKeyboard["inline_keyboard"] = [];
+    if (baseUrl) {
+      for (const user of users) {
+        if (!user.checkin_token) continue;
+        const label = `${user.emoji} ${user.name} — Відмітитись! 💪`;
+        const btnText = label.length > 64 ? `${label.slice(0, 61)}…` : label;
+        const url = `${baseUrl}/magic/${user.slug}?token=${user.checkin_token}`;
+        inline_keyboard.push([{ text: btnText, url }]);
+      }
+    }
 
     const missedBlock =
       missedYesterday.length > 0
@@ -141,17 +146,34 @@ export async function GET(request: NextRequest) {
       `${missedBlock}\n\n` +
       `Погнали, братове! 🔥`;
 
+    if (preview) {
+      const memeUrl = baseUrl
+        ? `${baseUrl}/memes/${getDailyMeme()}`
+        : "(NEXT_PUBLIC_APP_URL не задано)";
+      const previewMessage =
+        `--- sendPhoto (мем) ---\n` +
+        `photo: ${memeUrl}\n` +
+        `caption: 🌅 Ранковий мем для мотивації 💪\n\n` +
+        `--- sendMessage (текст) ---\n` +
+        `${text}\n\n` +
+        `--- reply_markup.inline_keyboard ---\n` +
+        `${JSON.stringify(inline_keyboard, null, 2)}`;
+      return NextResponse.json({ ok: true, message: previewMessage });
+    }
+
     if (!baseUrl) {
       console.warn(
         "[Telegram Morning] NEXT_PUBLIC_APP_URL missing, skipping meme photo"
       );
     } else {
-      void getDayIndex();
       const photoUrl = `${baseUrl}/memes/${getDailyMeme()}`;
       await sendTelegramMorningMemePhoto(photoUrl);
     }
 
-    await sendTelegramMessage(text, { inline_keyboard });
+    const replyMarkup: InlineKeyboard | undefined =
+      inline_keyboard.length > 0 ? { inline_keyboard } : undefined;
+
+    await sendTelegramMessage(text, replyMarkup);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Помилка відправки";

@@ -85,6 +85,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
   }
 
+  const preview =
+    request.nextUrl.searchParams.get("preview") === "true" ||
+    request.nextUrl.searchParams.get("preview") === "1";
+
   try {
     const now = new Date();
     const formattedDate = formatKyivDate(now);
@@ -99,9 +103,11 @@ export async function GET(request: NextRequest) {
       ]);
 
     const usersById = new Map(allUsers.map((u) => [u.id, u] as const));
-    for (const u of allUsers) {
-      const penalty = await getPenaltyStatus(u.id, u.created_at);
-      await checkAndSendPenaltyAlarm(u.name, penalty.missedDays, penalty.level);
+    if (!preview) {
+      for (const u of allUsers) {
+        const penalty = await getPenaltyStatus(u.id, u.created_at);
+        await checkAndSendPenaltyAlarm(u.name, penalty.missedDays, penalty.level);
+      }
     }
 
     const todayStr = getKyivDate(now);
@@ -154,6 +160,9 @@ export async function GET(request: NextRequest) {
       progressBlock +
       footer;
 
+    if (preview) {
+      return NextResponse.json({ ok: true, message: text });
+    }
     await sendTelegramMessage(text);
     return NextResponse.json({ ok: true });
   } catch (e) {

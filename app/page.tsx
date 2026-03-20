@@ -15,7 +15,7 @@ type DashboardUser = {
   slug: string;
   name: string;
   emoji: string;
-  created_at: unknown;
+  created_at?: string;
   checkedInToday: boolean;
   pushupsToday: number;
   streak: number;

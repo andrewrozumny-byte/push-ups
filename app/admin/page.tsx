@@ -384,6 +384,8 @@ export default function AdminPage() {
   const [whoMissedToday, setWhoMissedToday] = useState<AdminUser[]>([]);
   const [telegramTestLoading, setTelegramTestLoading] = useState(false);
   const [telegramTestResult, setTelegramTestResult] = useState<string>("");
+  const [telegramPreviewLoading, setTelegramPreviewLoading] = useState(false);
+  const [telegramPreviewText, setTelegramPreviewText] = useState<string>("");
 
   const runTelegramCronTest = async (path: string) => {
     setTelegramTestLoading(true);
@@ -407,6 +409,37 @@ export default function AdminPage() {
       console.error("[Telegram Cron Test]", e);
     } finally {
       setTelegramTestLoading(false);
+    }
+  };
+
+  const runTelegramCronPreview = async (path: string) => {
+    setTelegramPreviewLoading(true);
+    setTelegramPreviewText("");
+    try {
+      const url = `${path}?preview=true`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { ...(adminHeader ?? {}), "x-admin-password": storedPassword ?? "" },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const msg =
+        typeof data?.message === "string"
+          ? data.message
+          : JSON.stringify(data, null, 2);
+      setTelegramPreviewText(msg);
+    } catch (e) {
+      setTelegramPreviewText(
+        e instanceof Error ? e.message : "Помилка перегляду"
+      );
+      console.error("[Telegram Cron Preview]", e);
+    } finally {
+      setTelegramPreviewLoading(false);
     }
   };
 
@@ -892,34 +925,76 @@ export default function AdminPage() {
           <CardContent className="p-5">
             <div className="text-sm text-white mb-3">Telegram сповіщення</div>
 
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center"
-                disabled={telegramTestLoading}
-                onClick={() => runTelegramCronTest("/api/cron/morning")}
-              >
-                🌅 Тест ранкового (7:00)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center"
-                disabled={telegramTestLoading}
-                onClick={() => runTelegramCronTest("/api/cron/midday")}
-              >
-                ☀️ Тест денного (14:00)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center"
-                disabled={telegramTestLoading}
-                onClick={() => runTelegramCronTest("/api/cron/evening")}
-              >
-                🌙 Тест вечірнього (22:00)
-              </Button>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-white/60">🌅 Тест ранкового (7:00)</div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronTest("/api/cron/morning")}
+                  >
+                    Надіслати
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronPreview("/api/cron/morning")}
+                  >
+                    Переглянути
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-white/60">☀️ Тест денного (14:00)</div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronTest("/api/cron/midday")}
+                  >
+                    Надіслати
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronPreview("/api/cron/midday")}
+                  >
+                    Переглянути
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-white/60">🌙 Тест вечірнього (22:00)</div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronTest("/api/cron/evening")}
+                  >
+                    Надіслати
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronPreview("/api/cron/evening")}
+                  >
+                    Переглянути
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {telegramTestLoading ? (
@@ -927,6 +1002,21 @@ export default function AdminPage() {
             ) : telegramTestResult ? (
               <div className="mt-3 text-xs text-white/80">
                 {telegramTestResult}
+              </div>
+            ) : null}
+
+            {telegramPreviewLoading ? (
+              <div className="mt-3 text-xs text-white/70">Готуємо перегляд...</div>
+            ) : null}
+
+            {telegramPreviewText ? (
+              <div className="mt-3">
+                <div className="mb-1 text-xs font-medium text-white/50">
+                  Попередній перегляд (без відправки в Telegram)
+                </div>
+                <pre className="max-h-[min(420px,55vh)] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] p-3 text-left text-[11px] leading-relaxed text-[#e8e8e8] [font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace]">
+                  {telegramPreviewText}
+                </pre>
               </div>
             ) : null}
           </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
 import { cn } from "@/lib/utils";
 
 type DashboardUser = {
@@ -8,6 +9,7 @@ type DashboardUser = {
   slug: string;
   name: string;
   emoji: string;
+  created_at?: string;
   checkedInToday: boolean;
   streak: number;
   penaltyLevel: 0 | 1 | 2 | 3;
@@ -21,6 +23,16 @@ type UserCardProps = {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function daysSinceJoined(createdAt: string | undefined): number | null {
+  if (createdAt == null || createdAt === "") return null;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  const todayStr = getKyivDate();
+  const createdStr = getKyivDate(d);
+  const raw = diffCalendarDays(createdStr, todayStr) + 1;
+  return Number.isFinite(raw) ? raw : null;
 }
 
 function getMissedStreak(missedDays: number) {
@@ -67,6 +79,20 @@ export function UserCard({ user }: UserCardProps) {
           : "border-gray-800";
 
   const dots = missedDays > 0 ? getMissedStreak(missedDays) : [];
+  const joinedDays = daysSinceJoined(user.created_at);
+  const newMemberLabel =
+    joinedDays != null && joinedDays < 3
+      ? `Новий учасник 🌱 (${joinedDays} дн.)`
+      : "Новий учасник 🌱";
+
+  const progressLabel = (
+    <span
+      className="cursor-help text-gray-500"
+      title="Відсоток днів коли відмітився з моменту вступу в групу"
+    >
+      Прогрес виконання ℹ️
+    </span>
+  );
 
   return (
     <Link href={`/${user.slug}`} className={outer}>
@@ -112,13 +138,13 @@ export function UserCard({ user }: UserCardProps) {
             <div className="mt-1 flex flex-col gap-1">
               {progressPct == null ? (
                 <>
-                  <p className="text-xs text-gray-500">Прогрес</p>
-                  <p className="text-xs text-green-400">Новий учасник 🌱</p>
+                  <p className="text-xs">{progressLabel}</p>
+                  <p className="text-xs text-green-400">{newMemberLabel}</p>
                 </>
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-gray-500">Прогрес</span>
+                    {progressLabel}
                     <span className="shrink-0 font-medium text-white/80">{progress}%</span>
                   </div>
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#1e1e1e]">
