@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getKyivDate } from "@/lib/daily";
 import { getPushupsForYmd, getUsers, type User } from "@/lib/db";
-import { buildFridayWeeklySabbathMessage } from "@/lib/fridayWeeklySummary";
-import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import { addCalendarDays } from "@/lib/kyivDate";
 import { checkAndSendPenaltyAlarm } from "@/lib/penaltyAlarm";
 import { getPenaltyStatus } from "@/lib/penalties";
-import { isFridayPastSunset } from "@/lib/sabbath";
+import { kyivDayOfWeekSun0 } from "@/lib/sabbath";
 import {
   formatKyivDate,
   formatProgressBar,
@@ -93,28 +93,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-
-    if (isFridayPastSunset(now)) {
-      const allUsersFriday = await getUsers();
-      if (!preview) {
-        for (const u of allUsersFriday) {
-          const penalty = await getPenaltyStatus(u.id, u.created_at);
-          await checkAndSendPenaltyAlarm(
-            u.name,
-            penalty.missedDays,
-            penalty.level
-          );
-        }
-      }
-      const weeklyText = await buildFridayWeeklySabbathMessage(
-        allUsersFriday,
-        now
-      );
-      if (preview) {
-        return NextResponse.json({ ok: true, message: weeklyText });
-      }
-      await sendTelegramMessage(weeklyText);
-      return NextResponse.json({ ok: true, mode: "friday-weekly" });
+    // Kyiv Friday: skip 22:00 evening — weekly recap is /api/cron/friday-sunset
+    const dayOfWeek = kyivDayOfWeekSun0(now);
+    if (dayOfWeek === 5) {
+      return NextResponse.json({
+        ok: true,
+        skipped: "friday - weekly summary sent at sunset instead",
+      });
     }
 
     const formattedDate = formatKyivDate(now);

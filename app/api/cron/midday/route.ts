@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getKyivDate } from "@/lib/daily";
 import { getUsers } from "@/lib/db";
-import { getKyivDate } from "@/lib/kyivDate";
-import { isSaturday } from "@/lib/sabbath";
+import { kyivDayOfWeekSun0 } from "@/lib/sabbath";
 import {
   formatKyivDate,
   getTodayCheckins,
@@ -69,16 +69,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const today = new Date();
-
-    if (isSaturday(today)) {
+    const dayOfWeek = kyivDayOfWeekSun0(today);
+    if (dayOfWeek === 6) {
       if (preview) {
         return NextResponse.json({
           ok: true,
           message: "(денний крон пропущено — субота)",
-          skipped: "sabbath",
+          skipped: "saturday - sabbath day",
         });
       }
-      return NextResponse.json({ ok: true, skipped: "sabbath" });
+      return NextResponse.json({
+        ok: true,
+        skipped: "saturday - sabbath day",
+      });
     }
 
     const formattedDate = formatKyivDate(today);
