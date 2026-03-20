@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const formattedDate = formatKyivDate(now);
     const appUrlRaw = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    /** No trailing slash — URLs built as base + '/magic/' + slug + ... */
     const baseUrl = appUrlRaw.replace(/\/$/, "");
 
     const pushupsToday = getPushupsForDate(new Date());
@@ -121,16 +122,24 @@ export async function GET(request: NextRequest) {
     );
 
     void getDayIndex();
-    const inline_keyboard: InlineKeyboard["inline_keyboard"] = [];
-    if (baseUrl) {
-      for (const user of users) {
-        if (!user.checkin_token) continue;
-        const label = `${user.emoji} ${user.name} — Відмітитись! 💪`;
-        const btnText = label.length > 64 ? `${label.slice(0, 61)}…` : label;
-        const url = `${baseUrl}/magic/${user.slug}?token=${user.checkin_token}`;
-        inline_keyboard.push([{ text: btnText, url }]);
-      }
-    }
+
+    const usersWithTokens = users.filter((u) => u.checkin_token);
+    const inline_keyboard: InlineKeyboard["inline_keyboard"] =
+      baseUrl.length > 0
+        ? usersWithTokens.map((user) => {
+            const label =
+              user.emoji + " " + user.name + " — Відмітитись! 💪";
+            const btnText =
+              label.length > 64 ? label.slice(0, 61) + "…" : label;
+            const url =
+              baseUrl +
+              "/magic/" +
+              user.slug +
+              "?token=" +
+              user.checkin_token;
+            return [{ text: btnText, url }];
+          })
+        : [];
 
     const missedBlock =
       missedYesterday.length > 0
