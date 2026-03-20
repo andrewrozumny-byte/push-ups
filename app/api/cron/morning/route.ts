@@ -3,6 +3,7 @@ import { getDayIndex } from "@/lib/daily";
 import { getPushupsForDate, getUsersWithCheckinTokens } from "@/lib/db";
 import { getDailyMeme } from "@/lib/memes";
 import { getDailyMotivator } from "@/lib/motivators";
+import { buildSaturdaySabbathMorningMessage, isSaturday } from "@/lib/sabbath";
 import {
   formatKyivDate,
   getYesterdayMissed,
@@ -100,6 +101,16 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+
+    if (isSaturday(now)) {
+      const sabbathMessage = buildSaturdaySabbathMorningMessage(now);
+      if (preview) {
+        return NextResponse.json({ ok: true, message: sabbathMessage });
+      }
+      await sendTelegramMessage(sabbathMessage);
+      return NextResponse.json({ ok: true, mode: "sabbath" });
+    }
+
     const formattedDate = formatKyivDate(now);
     const appUrlRaw = process.env.NEXT_PUBLIC_APP_URL ?? "";
     /** No trailing slash — URLs built as base + '/magic/' + slug + ... */

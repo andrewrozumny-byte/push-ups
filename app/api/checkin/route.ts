@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createCheckin,
   getCheckinByUserAndDate,
+  getUserById,
   getUserBySlugAndToken,
 } from "@/lib/db";
+import { getRandomReaction } from "@/lib/checkinReactions";
 import { getKyivDate } from "@/lib/kyivDate";
 import { getRandomMotivator } from "@/lib/motivators";
+import { sendTelegramMessage } from "@/lib/telegram";
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,6 +63,18 @@ export async function POST(request: NextRequest) {
     const motivator = motivatorObj.source
       ? `${motivatorObj.text} — ${motivatorObj.source}`
       : motivatorObj.text;
+
+    let reactionName = userName;
+    if (!reactionName) {
+      const u = await getUserById(userId);
+      reactionName = u?.name ?? "Учасник";
+    }
+    try {
+      const reaction = getRandomReaction(reactionName);
+      await sendTelegramMessage(reaction);
+    } catch (err) {
+      console.error("[checkin] Telegram reaction failed:", err);
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPushupsForYmd, getUsers, type User } from "@/lib/db";
+import { buildFridayWeeklySabbathMessage } from "@/lib/fridayWeeklySummary";
 import { addCalendarDays, getKyivDate } from "@/lib/kyivDate";
 import { checkAndSendPenaltyAlarm } from "@/lib/penaltyAlarm";
 import { getPenaltyStatus } from "@/lib/penalties";
+import { isFridayPastSunset } from "@/lib/sabbath";
 import {
   formatKyivDate,
   formatProgressBar,
@@ -91,6 +93,30 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+
+    if (isFridayPastSunset(now)) {
+      const allUsersFriday = await getUsers();
+      if (!preview) {
+        for (const u of allUsersFriday) {
+          const penalty = await getPenaltyStatus(u.id, u.created_at);
+          await checkAndSendPenaltyAlarm(
+            u.name,
+            penalty.missedDays,
+            penalty.level
+          );
+        }
+      }
+      const weeklyText = await buildFridayWeeklySabbathMessage(
+        allUsersFriday,
+        now
+      );
+      if (preview) {
+        return NextResponse.json({ ok: true, message: weeklyText });
+      }
+      await sendTelegramMessage(weeklyText);
+      return NextResponse.json({ ok: true, mode: "friday-weekly" });
+    }
+
     const formattedDate = formatKyivDate(now);
 
     const [todayCheckins, todayMissed, weekProgress, monthProgress, allUsers] =

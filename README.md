@@ -50,6 +50,12 @@ npm run dev
 
 Він створить таблиці `users` і `checkins`.
 
+### Sabbath mode (Kyiv)
+
+- **Saturday**: ранковий крон — лише привітання суботи (без мему й кнопок); денний крон не шле повідомлення.
+- **Friday after sunset**: вечірній крон і окремий **`/api/cron/friday-sunset`** (п’ятниця 16:00 UTC у `vercel.json`) — тижневий підсумок + привітання перед шабатом.
+- **Saturday after sunset**: **`/api/cron/saturday-sunset`** (субота 16:00 UTC) — «субота закінчилась» + кнопки magic check-in.
+
 ### Magic links (Telegram «Відмітитись»)
 
 - У кожного учасника є секретний `checkin_token` у БД (генерується при створенні).

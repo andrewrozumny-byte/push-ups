@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsers } from "@/lib/db";
 import { getKyivDate } from "@/lib/kyivDate";
+import { isSaturday } from "@/lib/sabbath";
 import {
   formatKyivDate,
   getTodayCheckins,
@@ -68,6 +69,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const today = new Date();
+
+    if (isSaturday(today)) {
+      if (preview) {
+        return NextResponse.json({
+          ok: true,
+          message: "(денний крон пропущено — субота)",
+          skipped: "sabbath",
+        });
+      }
+      return NextResponse.json({ ok: true, skipped: "sabbath" });
+    }
+
     const formattedDate = formatKyivDate(today);
 
     const [todayCheckins, todayMissed] = await Promise.all([
