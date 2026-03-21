@@ -145,9 +145,7 @@ export async function GET(request: NextRequest) {
             const url =
               baseUrl +
               "/magic/" +
-              user.slug +
-              "?token=" +
-              user.checkin_token;
+              user.slug;
             return [{ text: btnText, url }];
           })
         : [];
