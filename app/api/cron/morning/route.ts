@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
               label.length > 64 ? label.slice(0, 61) + "…" : label;
             const url =
               baseUrl +
-              "/magic/" +
+              "/" +
               user.slug;
             return [{ text: btnText, url }];
           })
