@@ -255,6 +255,40 @@ export default function AdminPage() {
     }
   };
 
+  const handleRevertTodayCheckin = async (u: AdminUser) => {
+    if (!u.checkedInToday) return;
+    if (
+      !confirm(
+        `Скасувати відмітку за сьогодні для «${u.name}»? (наприклад, помилковий check-in)`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/revert-checkin-today", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminHeader ?? {}),
+        },
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          (data as { error?: string })?.error || `HTTP ${res.status}`
+        );
+      }
+      await refreshUsers();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Помилка");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Видалити учасника? Усі відмітки теж будуть видалені.")) return;
     setLoading(true);
@@ -682,7 +716,21 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          {u.checkedInToday ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handleRevertTodayCheckin(u)}
+                              disabled={loading}
+                              title="Скасувати відмітку за сьогодні (помилковий check-in)"
+                              aria-label="Скасувати відмітку за сьогодні"
+                              className="text-amber-400/95 border-amber-500/35 hover:bg-amber-500/10"
+                            >
+                              ↩️
+                            </Button>
+                          ) : null}
+
                           <Button
                             variant="outline"
                             size="sm"

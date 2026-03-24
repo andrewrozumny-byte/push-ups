@@ -433,6 +433,18 @@ export async function getCheckinByUserAndDate(
   };
 }
 
+/** Kyiv calendar day `dateStr` (YYYY-MM-DD). Returns true if a row was deleted. */
+export async function deleteCheckinForUserAndDate(
+  userId: string,
+  dateStr: string
+): Promise<boolean> {
+  const res = await query(
+    `DELETE FROM checkins WHERE user_id = $1 AND date = $2::date`,
+    [userId, dateStr]
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
 export async function createCheckin(
   userId: string,
   dateStr: string
