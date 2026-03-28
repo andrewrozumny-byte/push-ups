@@ -11,20 +11,6 @@ import {
   type TelegramUserLabel,
 } from "@/lib/telegramStats";
 
-async function requireCronAuth(request: NextRequest): Promise<boolean> {
-  const cronSecret = (process.env.CRON_SECRET ?? "").trim();
-  const adminPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
-
-  const auth = request.headers.get("authorization") ?? "";
-  if (auth.startsWith("Bearer ")) {
-    const provided = auth.slice("Bearer ".length).trim();
-    if (cronSecret && provided === cronSecret) return true;
-  }
-
-  const providedAdmin = (request.headers.get("x-admin-password") ?? "").trim();
-  return !!adminPassword && providedAdmin === adminPassword;
-}
-
 type InlineKeyboard = {
   inline_keyboard: Array<Array<{ text: string; url: string }>>;
 };
@@ -91,8 +77,18 @@ function buildBulletList(items: TelegramUserLabel[]): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await requireCronAuth(request))) {
-    return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
+  const adminPassword = request.headers.get("x-admin-password");
+  const authHeader = request.headers.get("authorization");
+
+  console.log("ADMIN_PASSWORD exists:", !!process.env.ADMIN_PASSWORD);
+  console.log("Password match:", adminPassword === process.env.ADMIN_PASSWORD);
+
+  const isValid =
+    adminPassword === process.env.ADMIN_PASSWORD ||
+    authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  if (!isValid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const preview =
