@@ -1043,6 +1043,33 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-white/60">
+                  📊 Тижневий звіт (п&apos;ятниця)
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() => runTelegramCronTest("/api/cron/friday-sunset")}
+                  >
+                    Надіслати
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15 px-2"
+                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    onClick={() =>
+                      runTelegramCronPreview("/api/cron/friday-sunset")
+                    }
+                  >
+                    Переглянути тижневий звіт
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {telegramTestLoading ? (
