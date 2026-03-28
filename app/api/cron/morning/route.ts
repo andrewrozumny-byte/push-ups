@@ -80,9 +80,6 @@ export async function GET(request: NextRequest) {
   const adminPassword = request.headers.get("x-admin-password");
   const authHeader = request.headers.get("authorization");
 
-  console.log("ADMIN_PASSWORD exists:", !!process.env.ADMIN_PASSWORD);
-  console.log("Password match:", adminPassword === process.env.ADMIN_PASSWORD);
-
   const isValid =
     adminPassword === process.env.ADMIN_PASSWORD ||
     authHeader === `Bearer ${process.env.CRON_SECRET}`;
@@ -90,6 +87,8 @@ export async function GET(request: NextRequest) {
   if (!isValid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  console.log("Cron triggered:", new Date().toISOString());
 
   const preview =
     request.nextUrl.searchParams.get("preview") === "true" ||
@@ -123,10 +122,6 @@ export async function GET(request: NextRequest) {
     const missedYesterday = await getYesterdayMissed();
 
     const users = await getUsersWithCheckinTokens();
-    console.log(
-      "Users with tokens:",
-      users.map((u) => ({ name: u.name, hasToken: !!u.checkin_token }))
-    );
 
     void getDayIndex();
 

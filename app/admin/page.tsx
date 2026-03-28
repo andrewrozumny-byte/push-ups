@@ -489,7 +489,6 @@ export default function AdminPage() {
     setTelegramTestResult("");
     try {
       const password = getPasswordForFridaySunsetFetch();
-      console.log("Sending password:", password);
       const res = await fetch("/api/cron/friday-sunset", {
         method: "GET",
         headers: {
@@ -521,7 +520,6 @@ export default function AdminPage() {
     setTelegramPreviewText("");
     try {
       const password = getPasswordForFridaySunsetFetch();
-      console.log("Sending password:", password);
       const res = await fetch("/api/cron/friday-sunset?preview=true", {
         method: "GET",
         headers: {
