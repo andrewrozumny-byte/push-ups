@@ -1,30 +1,78 @@
 import { getCheckinsByUser, type User } from "@/lib/db";
-import { getCrewWeekRangeForKyivDate } from "@/lib/daily";
-import { addCalendarDays, diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import {
+  addCalendarDays,
+  diffCalendarDays,
+  firstFridayOnOrAfter,
+  getKyivDate,
+  pushupsStartYmd,
+} from "@/lib/kyivDate";
 import { escapeTelegramHtmlText, getSabbathTimes } from "@/lib/sabbath";
 
 export type WeekUserStat = {
   user: User;
-  /** Distinct check-in days from crew week start through today (shown as X/7). */
+  /** Distinct check-in days in the Friday–Friday window (shown as X/denom). */
   checkedDays: number;
-  /** Check-in on every calendar day from crew week start through today. */
+  /** Max days this user could have checked in (7, or fewer if joined mid-week). */
+  denom: number;
+  /** Check-in on every eligible calendar day in the window. */
   perfectSoFar: boolean;
 };
 
+/**
+ * Friday sunset week: last Kyiv Friday through the Thursday before this Friday.
+ * Label range is lastFriday … thisFriday (today when cron runs on Friday).
+ */
+function getFridayWeekWindow(now: Date): {
+  weekNumber: number;
+  lastFridayYmd: string;
+  thisFridayYmd: string;
+  statsStartYmd: string;
+  statsEndYmd: string;
+} {
+  const thisFridayYmd = getKyivDate(now);
+  const lastFridayYmd = addCalendarDays(thisFridayYmd, -7);
+  const statsStartYmd = lastFridayYmd;
+  const statsEndYmd = addCalendarDays(lastFridayYmd, 6);
+
+  const anchorFriday = firstFridayOnOrAfter(pushupsStartYmd());
+  const diffFromAnchor = diffCalendarDays(anchorFriday, lastFridayYmd);
+  const weekNumber =
+    diffFromAnchor < 0 ? 1 : Math.floor(diffFromAnchor / 7) + 1;
+
+  return {
+    weekNumber,
+    lastFridayYmd,
+    thisFridayYmd,
+    statsStartYmd,
+    statsEndYmd,
+  };
+}
+
 async function computeUserWeekStat(
   user: User,
-  weekStart: string,
-  todayStr: string,
-  daysElapsed: number
+  statsStartYmd: string,
+  statsEndYmd: string
 ): Promise<WeekUserStat> {
   const checkins = await getCheckinsByUser(user.id);
   const dates = new Set(checkins.map((c) => c.date));
+  const joinYmd = getKyivDate(user.created_at);
+
+  const effectiveStart =
+    statsStartYmd >= joinYmd ? statsStartYmd : joinYmd;
+
+  let denom = 0;
+  if (effectiveStart <= statsEndYmd) {
+    denom = Math.min(
+      7,
+      diffCalendarDays(effectiveStart, statsEndYmd) + 1
+    );
+  }
 
   let checkedDays = 0;
-  let perfectSoFar = true;
-  for (let i = 0; i < daysElapsed; i++) {
-    const ymd = addCalendarDays(weekStart, i);
-    if (ymd > todayStr) break;
+  let perfectSoFar = denom > 0;
+  for (let i = 0; i < denom; i++) {
+    const ymd = addCalendarDays(effectiveStart, i);
+    if (ymd > statsEndYmd) break;
     if (dates.has(ymd)) {
       checkedDays++;
     } else {
@@ -35,6 +83,7 @@ async function computeUserWeekStat(
   return {
     user,
     checkedDays,
+    denom,
     perfectSoFar,
   };
 }
@@ -47,34 +96,36 @@ export async function buildFridayWeeklySabbathMessage(
   allUsers: User[],
   now: Date = new Date()
 ): Promise<string> {
-  const todayStr = getKyivDate(now);
-  const { weekNumber, rangeStart: weekStart, rangeEnd: weekEnd } =
-    getCrewWeekRangeForKyivDate(now);
+  const {
+    weekNumber,
+    lastFridayYmd,
+    thisFridayYmd,
+    statsStartYmd,
+    statsEndYmd,
+  } = getFridayWeekWindow(now);
   const sunsetTime = getSabbathTimes(now).end;
-
-  const daysElapsed = Math.min(
-    7,
-    Math.max(1, diffCalendarDays(weekStart, todayStr) + 1)
-  );
 
   const stats: WeekUserStat[] = [];
   for (const u of allUsers) {
-    stats.push(await computeUserWeekStat(u, weekStart, todayStr, daysElapsed));
+    stats.push(await computeUserWeekStat(u, statsStartYmd, statsEndYmd));
   }
 
-  const perfect = stats.filter((s) => s.perfectSoFar);
+  const perfect = stats.filter((s) => s.perfectSoFar && s.denom === 7);
   const maxChecked = Math.max(0, ...stats.map((s) => s.checkedDays));
   const leaders = stats.filter((s) => s.checkedDays === maxChecked && maxChecked > 0);
   leaders.sort((a, b) => a.user.name.localeCompare(b.user.name, "uk"));
 
+  const fmtScore = (s: WeekUserStat) =>
+    s.denom === 0 ? "0" : `${s.checkedDays}/${s.denom}`;
+
   let leaderLine = "—";
   if (leaders.length === 1) {
-    leaderLine = `${leaders[0].user.emoji} <b>${escapeTelegramHtmlText(leaders[0].user.name)}</b> (${leaders[0].checkedDays}/7)`;
+    leaderLine = `${leaders[0].user.emoji} <b>${escapeTelegramHtmlText(leaders[0].user.name)}</b> (${fmtScore(leaders[0])})`;
   } else if (leaders.length > 1) {
     leaderLine = leaders
       .map(
         (s) =>
-          `${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} (${s.checkedDays}/7)`
+          `${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} (${fmtScore(s)})`
       )
       .join(", ");
   }
@@ -84,7 +135,7 @@ export async function buildFridayWeeklySabbathMessage(
       ? perfect
           .map(
             (s) =>
-              `- ${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} — ${s.checkedDays}/7`
+              `- ${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} — 7/7`
           )
           .join("\n")
       : "- (немає)";
@@ -92,7 +143,7 @@ export async function buildFridayWeeklySabbathMessage(
   const statsBlock = stats
     .map(
       (s) =>
-        `- ${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} — ${s.checkedDays}/7 днів`
+        `- ${s.user.emoji} ${escapeTelegramHtmlText(s.user.name)} — ${fmtScore(s)} днів`
     )
     .join("\n");
 
@@ -102,8 +153,8 @@ export async function buildFridayWeeklySabbathMessage(
 
   return (
     `🌇 <b>ТИЖНЕВИЙ ПІДСУМОК!</b>\n` +
-    `📅 Тиждень <b>${weekNumber}</b> (${weekStart} … ${weekEnd})\n\n` +
-    `✅ <b>Відмінники тижня (без пропусків з початку тижня групи):</b>\n` +
+    `📅 Тиждень <b>${weekNumber}</b> (${lastFridayYmd} … ${thisFridayYmd})\n\n` +
+    `✅ <b>Відмінники тижня (без пропусків за всі 7 днів тижня):</b>\n` +
     `${starsBlock}\n\n` +
     `📊 <b>Статистика тижня:</b>\n` +
     `${statsBlock}\n\n` +

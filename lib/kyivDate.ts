@@ -72,6 +72,14 @@ function kyivWeekdaySun0(inst: Date): number {
   return WEEKDAYS_LONG_EN.indexOf(long as (typeof WEEKDAYS_LONG_EN)[number]);
 }
 
+/** First Kyiv calendar Friday on or after `ymd` (YYYY-MM-DD). */
+export function firstFridayOnOrAfter(ymd: string): string {
+  const inst = utcInstantForKyivYmd(ymd);
+  const dow = kyivWeekdaySun0(inst);
+  const daysToFriday = (5 - dow + 7) % 7;
+  return addCalendarDays(ymd, daysToFriday);
+}
+
 /** Monday (ISO) of the week that contains this Kyiv calendar day. */
 export function startOfWeekMondayKyiv(ymd: string): string {
   const inst = utcInstantForKyivYmd(ymd);
