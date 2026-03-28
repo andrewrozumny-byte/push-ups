@@ -43,6 +43,11 @@ async function sendTelegramMessage(text: string) {
 
 /** Friday ~sunset Kyiv: weekly recap + greeting before Shabbat. */
 export async function GET(request: NextRequest) {
+  const adminPassword = (request.headers.get("x-admin-password") ?? "").trim();
+  console.log("Received password:", adminPassword);
+  console.log("Expected password:", process.env.ADMIN_PASSWORD);
+  console.log("Match:", adminPassword === process.env.ADMIN_PASSWORD);
+
   if (!(await requireCronAuth(request))) {
     return NextResponse.json({ error: "Немає доступу" }, { status: 401 });
   }

@@ -477,6 +477,80 @@ export default function AdminPage() {
     }
   };
 
+  /** Prefer sessionStorage (same as add-user / edit) so the tab always sends the latest login password. */
+  const getPasswordForFridaySunsetFetch = (): string => {
+    const fromSession =
+      typeof window !== "undefined" ? getSessionPassword() : null;
+    return (fromSession ?? storedPassword ?? "").trim();
+  };
+
+  const runFridaySunsetTelegramCronTest = async () => {
+    setTelegramTestLoading(true);
+    setTelegramTestResult("");
+    try {
+      const password = getPasswordForFridaySunsetFetch();
+      console.log("Sending password:", password);
+      const res = await fetch("/api/cron/friday-sunset", {
+        method: "GET",
+        headers: {
+          ...(adminHeader ?? {}),
+          "x-admin-password": password,
+        },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      setTelegramTestResult(
+        `OK: повідомлення надіслано (/api/cron/friday-sunset)`
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Помилка відправки";
+      setTelegramTestResult(msg);
+      console.error("[Telegram Cron Test friday-sunset]", e);
+    } finally {
+      setTelegramTestLoading(false);
+    }
+  };
+
+  const runFridaySunsetTelegramCronPreview = async () => {
+    setTelegramPreviewLoading(true);
+    setTelegramPreviewText("");
+    try {
+      const password = getPasswordForFridaySunsetFetch();
+      console.log("Sending password:", password);
+      const res = await fetch("/api/cron/friday-sunset?preview=true", {
+        method: "GET",
+        headers: {
+          ...(adminHeader ?? {}),
+          "x-admin-password": password,
+        },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const msg =
+        typeof data?.message === "string"
+          ? data.message
+          : JSON.stringify(data, null, 2);
+      setTelegramPreviewText(msg);
+    } catch (e) {
+      setTelegramPreviewText(
+        e instanceof Error ? e.message : "Помилка перегляду"
+      );
+      console.error("[Telegram Cron Preview friday-sunset]", e);
+    } finally {
+      setTelegramPreviewLoading(false);
+    }
+  };
+
   const computeStats = async () => {
     setStatsLoading(true);
     setError("");
@@ -1053,7 +1127,7 @@ export default function AdminPage() {
                     variant="outline"
                     className="flex-1 justify-center"
                     disabled={telegramTestLoading || telegramPreviewLoading}
-                    onClick={() => runTelegramCronTest("/api/cron/friday-sunset")}
+                    onClick={() => void runFridaySunsetTelegramCronTest()}
                   >
                     Надіслати
                   </Button>
@@ -1062,9 +1136,7 @@ export default function AdminPage() {
                     variant="secondary"
                     className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15 px-2"
                     disabled={telegramTestLoading || telegramPreviewLoading}
-                    onClick={() =>
-                      runTelegramCronPreview("/api/cron/friday-sunset")
-                    }
+                    onClick={() => void runFridaySunsetTelegramCronPreview()}
                   >
                     Переглянути тижневий звіт
                   </Button>
