@@ -420,6 +420,40 @@ export default function AdminPage() {
   const [telegramTestResult, setTelegramTestResult] = useState<string>("");
   const [telegramPreviewLoading, setTelegramPreviewLoading] = useState(false);
   const [telegramPreviewText, setTelegramPreviewText] = useState<string>("");
+  const [telegramCustomText, setTelegramCustomText] = useState("");
+  const [telegramCustomLoading, setTelegramCustomLoading] = useState(false);
+
+  const sendCustomTelegram = async () => {
+    const text = telegramCustomText.trim();
+    if (!text) {
+      setTelegramTestResult("Введіть текст повідомлення");
+      return;
+    }
+    setTelegramCustomLoading(true);
+    setTelegramTestResult("");
+    try {
+      const res = await fetch("/api/admin/telegram-send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminHeader ?? {}),
+          "x-admin-password": storedPassword ?? "",
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      setTelegramTestResult("OK: повідомлення надіслано в Telegram");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Помилка відправки";
+      setTelegramTestResult(msg);
+      console.error("[Telegram custom send]", e);
+    } finally {
+      setTelegramCustomLoading(false);
+    }
+  };
 
   const runTelegramCronTest = async (path: string) => {
     setTelegramTestLoading(true);
@@ -1045,6 +1079,31 @@ export default function AdminPage() {
           <CardContent className="p-5">
             <div className="text-sm text-white mb-3">Telegram сповіщення</div>
 
+            <div className="mb-4 rounded-xl border border-[#1e1e1e] bg-[#111111]/60 p-3">
+              <div className="text-xs text-white/60 mb-2">
+                Власне повідомлення (вставте текст і надішліть у чат)
+              </div>
+              <textarea
+                value={telegramCustomText}
+                onChange={(e) => setTelegramCustomText(e.target.value)}
+                placeholder="Текст для Telegram…"
+                rows={6}
+                className="w-full resize-y min-h-[120px] rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus-visible:border-[#22c55e]/50 focus-visible:ring-2 focus-visible:ring-[#22c55e]/20"
+              />
+              <Button
+                type="button"
+                className="mt-2 w-full justify-center"
+                disabled={
+                  telegramTestLoading ||
+                  telegramPreviewLoading ||
+                  telegramCustomLoading
+                }
+                onClick={() => void sendCustomTelegram()}
+              >
+                {telegramCustomLoading ? "Надсилаємо…" : "Надіслати в Telegram"}
+              </Button>
+            </div>
+
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <div className="text-xs text-white/60">🌅 Тест ранкового (7:00)</div>
@@ -1053,7 +1112,11 @@ export default function AdminPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 justify-center"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronTest("/api/cron/morning")}
                   >
                     Надіслати
@@ -1062,7 +1125,11 @@ export default function AdminPage() {
                     type="button"
                     variant="secondary"
                     className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronPreview("/api/cron/morning")}
                   >
                     Переглянути
@@ -1076,7 +1143,11 @@ export default function AdminPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 justify-center"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronTest("/api/cron/midday")}
                   >
                     Надіслати
@@ -1085,7 +1156,11 @@ export default function AdminPage() {
                     type="button"
                     variant="secondary"
                     className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronPreview("/api/cron/midday")}
                   >
                     Переглянути
@@ -1099,7 +1174,11 @@ export default function AdminPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 justify-center"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronTest("/api/cron/evening")}
                   >
                     Надіслати
@@ -1108,7 +1187,11 @@ export default function AdminPage() {
                     type="button"
                     variant="secondary"
                     className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => runTelegramCronPreview("/api/cron/evening")}
                   >
                     Переглянути
@@ -1124,7 +1207,11 @@ export default function AdminPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 justify-center"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => void runFridaySunsetTelegramCronTest()}
                   >
                     Надіслати
@@ -1133,7 +1220,11 @@ export default function AdminPage() {
                     type="button"
                     variant="secondary"
                     className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15 px-2"
-                    disabled={telegramTestLoading || telegramPreviewLoading}
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
                     onClick={() => void runFridaySunsetTelegramCronPreview()}
                   >
                     Переглянути тижневий звіт
@@ -1142,7 +1233,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {telegramTestLoading ? (
+            {telegramTestLoading || telegramCustomLoading ? (
               <div className="mt-3 text-xs text-white/70">Відправляємо...</div>
             ) : telegramTestResult ? (
               <div className="mt-3 text-xs text-white/80">
