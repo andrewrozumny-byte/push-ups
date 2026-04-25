@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getDailyMeme } from "@/lib/memes";
 
@@ -48,13 +49,16 @@ export function DailyMotivator() {
   return (
     <div className="rounded-2xl border border-[#1e1e1e] bg-[#111111] overflow-hidden transition-shadow hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_0_30px_rgba(34,197,94,0.06)]">
       {/* Image on top (no cropping) */}
-      <div className="w-full bg-[#111111] rounded-t-xl overflow-hidden">
+      <div className="relative w-full min-h-[120px] h-[220px] max-h-[350px] bg-[#111111] rounded-t-xl overflow-hidden">
         {!imageError ? (
-          <img
+          <Image
             src={`/memes/${memeFile}`}
             alt={motivator.alt ?? "Мотивація дня"}
-            className="w-full max-h-[350px] object-contain bg-[#111111]"
-            loading="eager"
+            fill
+            className="object-contain object-center bg-[#111111]"
+            sizes="(max-width: 768px) 100vw, 640px"
+            unoptimized
+            priority
             onError={() => setImageError(true)}
           />
         ) : (

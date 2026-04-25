@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getKyivDate } from "@/lib/daily";
-import { getPushupsForYmd, getUsers, type User } from "@/lib/db";
+import { getPushupsForYmd, getUsers } from "@/lib/db";
 import { addCalendarDays } from "@/lib/kyivDate";
 import { checkAndSendPenaltyAlarm } from "@/lib/penaltyAlarm";
 import { getPenaltyStatus } from "@/lib/penalties";
