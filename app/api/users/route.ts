@@ -9,6 +9,7 @@ import {
   getPushupsForDate,
   getUsers,
 } from "@/lib/db";
+import { countSaturdaysBetweenInclusive } from "@/lib/kyivDate";
 import { getPenaltyStatus } from "@/lib/penalties";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,15 @@ export async function GET() {
           ? Math.max(1, daysSinceRegistrationRaw)
           : 1;
 
+        const saturdaysInWindow = countSaturdaysBetweenInclusive(
+          createdStr,
+          todayStr
+        );
+        const totalPossibleDays = Math.max(
+          1,
+          daysSinceRegistration - saturdaysInWindow
+        );
+
         const completedDays = checkins.filter(
           (c) => c.date >= createdStr && c.date <= todayStr
         ).length;
@@ -69,7 +79,7 @@ export async function GET() {
                 0,
                 Math.min(
                   100,
-                  Math.round((completedDays / daysSinceRegistration) * 100)
+                  Math.round((completedDays / totalPossibleDays) * 100)
                 )
               );
 

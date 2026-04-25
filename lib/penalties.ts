@@ -8,6 +8,7 @@ import {
   addCalendarDays,
   diffCalendarDays,
   getKyivDate,
+  kyivDayOfWeekSun0ForYmd,
   pushupsStartYmd,
 } from "@/lib/kyivDate";
 
@@ -73,17 +74,34 @@ export async function getPenaltyStatus(
   const checkinDates = new Set(checkins.map((c) => c.date));
 
   let currentStreak = 0;
-  if (checkinDates.has(todayStr)) {
-    let cursor = todayStr;
-    while (checkinDates.has(cursor)) {
-      currentStreak++;
-      cursor = addCalendarDays(cursor, -1);
+  /** Saturday is rest — streak continues across it without requiring a check-in. */
+  let streakAnchor = todayStr;
+  if (kyivDayOfWeekSun0ForYmd(todayStr) === 6 && !checkinDates.has(todayStr)) {
+    streakAnchor = addCalendarDays(todayStr, -1);
+  }
+  if (checkinDates.has(streakAnchor)) {
+    let cursor = streakAnchor;
+    while (cursor >= startCalcYmd) {
+      if (checkinDates.has(cursor)) {
+        currentStreak++;
+        cursor = addCalendarDays(cursor, -1);
+        continue;
+      }
+      if (kyivDayOfWeekSun0ForYmd(cursor) === 6) {
+        cursor = addCalendarDays(cursor, -1);
+        continue;
+      }
+      break;
     }
   }
 
   let missedDays = 0;
   let cursor = todayStr;
   while (cursor >= startCalcYmd) {
+    if (kyivDayOfWeekSun0ForYmd(cursor) === 6) {
+      cursor = addCalendarDays(cursor, -1);
+      continue;
+    }
     if (checkinDates.has(cursor)) break;
     missedDays++;
     cursor = addCalendarDays(cursor, -1);

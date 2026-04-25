@@ -1,8 +1,10 @@
 import { getCheckinsByUser, getPushupsForDate, getUsers, type User } from "@/lib/db";
+import { getPenaltyStatus } from "@/lib/penalties";
 import {
   addCalendarDays,
   diffCalendarDays,
   getKyivDate,
+  kyivDayOfWeekSun0ForYmd,
 } from "@/lib/kyivDate";
 
 export type TelegramUserLabel = {
@@ -120,11 +122,40 @@ export async function getConsecutiveMisses(userId: string): Promise<number> {
   let missed = 0;
   let cursor = todayStr;
   while (cursor >= createdStr) {
+    if (kyivDayOfWeekSun0ForYmd(cursor) === 6) {
+      cursor = addCalendarDays(cursor, -1);
+      continue;
+    }
     if (checkinDates.has(cursor)) break;
     missed++;
     cursor = addCalendarDays(cursor, -1);
   }
   return missed;
+}
+
+/** Missed lines with penalty day count (same as evening cron). */
+export async function buildTodayMissedPenaltyLines(
+  missed: TelegramUserLabel[],
+  usersById: Map<string, User>
+): Promise<string> {
+  const lines: string[] = [];
+  for (const u of missed) {
+    const row = usersById.get(u.userId);
+    const penalty = row
+      ? await getPenaltyStatus(u.userId, row.created_at)
+      : { missedDays: 1 };
+    const n = Math.max(1, penalty.missedDays);
+    const tail =
+      n === 1
+        ? "1й день ⚠️"
+        : n === 2
+          ? "2й день 🟠"
+          : n === 3
+            ? "3й день 🔴 ШТРАФ!"
+            : `${n}й день 🔴`;
+    lines.push(`- ${u.emoji} ${u.display} — ${tail}`);
+  }
+  return lines.join("\n");
 }
 
 async function computeProgress(fromStr: string, toStr: string): Promise<number> {

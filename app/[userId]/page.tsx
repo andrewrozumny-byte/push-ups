@@ -8,7 +8,12 @@ import {
 } from "@/lib/db";
 
 import { getPenaltyStatus as getPenalty } from "@/lib/penalties";
-import { diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import {
+  countSaturdaysBetweenInclusive,
+  diffCalendarDays,
+  getKyivDate,
+} from "@/lib/kyivDate";
+import { isSaturday } from "@/lib/sabbath";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +64,19 @@ export default async function ProfilePage({
     ? Math.max(1, daysSinceRegistrationRaw)
     : 1;
 
+  const saturdaysInWindow = countSaturdaysBetweenInclusive(
+    createdStr,
+    todayStr
+  );
+  const totalPossibleDays = Math.max(
+    1,
+    daysSinceRegistration - saturdaysInWindow
+  );
+
+  const completedDays = checkins.filter(
+    (c) => c.date >= createdStr && c.date <= todayStr
+  ).length;
+
   const progressPct =
     daysSinceRegistration < 3
       ? null
@@ -66,9 +84,11 @@ export default async function ProfilePage({
           0,
           Math.min(
             100,
-            Math.round((totalDays / daysSinceRegistration) * 100)
+            Math.round((completedDays / totalPossibleDays) * 100)
           )
         );
+
+  const isSaturdayRest = isSaturday(new Date());
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-white overflow-x-hidden">
@@ -91,6 +111,7 @@ export default async function ProfilePage({
           initialTotalDays={totalDays}
           initialBestStreak={bestStreak}
           initialProgressPct={progressPct}
+          isSaturdayRest={isSaturdayRest}
         />
 
         <section>

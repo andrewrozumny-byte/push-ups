@@ -70,12 +70,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           ok: true,
           message: "(денний крон пропущено — субота)",
-          skipped: "saturday - sabbath day",
+          skipped: "saturday sabbath",
         });
       }
       return NextResponse.json({
         ok: true,
-        skipped: "saturday - sabbath day",
+        skipped: "saturday sabbath",
       });
     }
 

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPushupsForDate, getUsersWithCheckinTokens } from "@/lib/db";
+import { buildSaturdayWeeklySabbathMessage } from "@/lib/saturdayWeeklySummary";
 
-type InlineKeyboard = {
-  inline_keyboard: Array<Array<{ text: string; url: string }>>;
-};
-
-async function sendTelegramMessage(text: string, replyMarkup?: InlineKeyboard) {
+async function sendTelegramMessage(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
   const chatId = process.env.TELEGRAM_CHAT_ID ?? "";
 
@@ -13,23 +9,15 @@ async function sendTelegramMessage(text: string, replyMarkup?: InlineKeyboard) {
     throw new Error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not set");
   }
 
-  const payload: Record<string, unknown> = {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-  };
-  if (
-    replyMarkup?.inline_keyboard &&
-    replyMarkup.inline_keyboard.length > 0
-  ) {
-    payload.reply_markup = replyMarkup;
-  }
-
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    }),
   });
 
   if (!res.ok) {
@@ -38,7 +26,7 @@ async function sendTelegramMessage(text: string, replyMarkup?: InlineKeyboard) {
   }
 }
 
-/** After Saturday sunset Kyiv: optional check-in + magic link buttons. */
+/** After Saturday sunset Kyiv: weekly Sun–Fri recap + personal praise (no buttons). */
 export async function GET(request: NextRequest) {
   const adminPassword = request.headers.get("x-admin-password");
   const authHeader = request.headers.get("authorization");
@@ -59,47 +47,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const pushups = getPushupsForDate(now);
-    const appUrlRaw = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const baseUrl = appUrlRaw.replace(/\/$/, "");
-
-    const users = await getUsersWithCheckinTokens();
-    const usersWithTokens = users.filter((u) => u.checkin_token);
-    const inline_keyboard: InlineKeyboard["inline_keyboard"] =
-      baseUrl.length > 0
-        ? usersWithTokens.map((user) => {
-            const label =
-              user.emoji + " " + user.name + " — Відмітитись! 💪";
-            const btnText =
-              label.length > 64 ? label.slice(0, 61) + "…" : label;
-            const url =
-              baseUrl +
-              "/magic/" +
-              user.slug +
-              "?token=" +
-              user.checkin_token;
-            return [{ text: btnText, url }];
-          })
-        : [];
-
-    const text =
-      `🌆 <b>СУБОТА ЗАКІНЧИЛАСЬ!</b>\n\n` +
-      `Сонце зайшло — нова тижня починається! 💪\n\n` +
-      `Хто хоче — може відмітитись і відробити сьогоднішні <b>${pushups} віджимань</b>!\n\n` +
-      `Погнали з новими силами! 🔥`;
+    const text = await buildSaturdayWeeklySabbathMessage(now);
 
     if (preview) {
-      const previewMessage =
-        `${text}\n\n--- reply_markup.inline_keyboard ---\n` +
-        `${JSON.stringify(inline_keyboard, null, 2)}`;
-      return NextResponse.json({ ok: true, message: previewMessage });
+      return NextResponse.json({ ok: true, message: text });
     }
 
-    const replyMarkup: InlineKeyboard | undefined =
-      inline_keyboard.length > 0 ? { inline_keyboard } : undefined;
-
-    await sendTelegramMessage(text, replyMarkup);
-    return NextResponse.json({ ok: true, mode: "saturday-sunset" });
+    await sendTelegramMessage(text);
+    return NextResponse.json({ ok: true, mode: "saturday-sunset-weekly" });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Помилка відправки";
     console.error("[Telegram Saturday sunset]", message);

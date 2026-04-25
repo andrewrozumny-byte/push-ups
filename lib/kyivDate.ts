@@ -64,6 +64,31 @@ const WEEKDAYS_LONG_EN = [
   "Saturday",
 ] as const;
 
+/** 0 = Sunday … 6 = Saturday for this Kyiv calendar day (YYYY-MM-DD). */
+export function kyivDayOfWeekSun0ForYmd(ymd: string): number {
+  const inst = utcInstantForKyivYmd(ymd);
+  const long = new Intl.DateTimeFormat("en-US", {
+    timeZone: KYIV_TZ,
+    weekday: "long",
+  }).format(inst);
+  return WEEKDAYS_LONG_EN.indexOf(long as (typeof WEEKDAYS_LONG_EN)[number]);
+}
+
+/** Count Kyiv Saturdays in [startYmd, endYmd] inclusive (0 if start > end). */
+export function countSaturdaysBetweenInclusive(
+  startYmd: string,
+  endYmd: string
+): number {
+  if (startYmd > endYmd) return 0;
+  let n = 0;
+  let cur = startYmd;
+  while (cur <= endYmd) {
+    if (kyivDayOfWeekSun0ForYmd(cur) === 6) n++;
+    cur = addCalendarDays(cur, 1);
+  }
+  return n;
+}
+
 function kyivWeekdaySun0(inst: Date): number {
   const long = new Intl.DateTimeFormat("en-US", {
     timeZone: KYIV_TZ,

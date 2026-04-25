@@ -15,6 +15,8 @@ type ProfileStatsClientProps = {
   initialTotalDays: number;
   initialBestStreak: number;
   initialProgressPct: number | null;
+  /** Kyiv Saturday: no check-in (Sabbath rest). */
+  isSaturdayRest?: boolean;
 };
 
 function computeBestStreak(checkins: Array<{ date: string }>): number {
@@ -77,6 +79,7 @@ export function ProfileStatsClient({
   initialTotalDays,
   initialBestStreak,
   initialProgressPct,
+  isSaturdayRest = false,
 }: ProfileStatsClientProps) {
   const [penalty, setPenalty] = useState<PenaltyStatus>(initialPenalty);
   const [totalDays, setTotalDays] = useState(initialTotalDays);
@@ -139,6 +142,7 @@ export function ProfileStatsClient({
           userId={userId}
           initialCheckedIn={initialCheckedIn}
           onModalClosed={refetchStats}
+          isSaturdayRest={isSaturdayRest}
         />
         {loadingStats ? (
           <div className="mt-2 text-xs text-white/60">Оновлюємо статистику...</div>

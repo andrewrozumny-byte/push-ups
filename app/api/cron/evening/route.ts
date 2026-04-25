@@ -6,6 +6,7 @@ import { checkAndSendPenaltyAlarm } from "@/lib/penaltyAlarm";
 import { getPenaltyStatus } from "@/lib/penalties";
 import { kyivDayOfWeekSun0 } from "@/lib/sabbath";
 import {
+  buildTodayMissedPenaltyLines,
   formatKyivDate,
   formatProgressBar,
   getTodayCheckins,
@@ -44,30 +45,6 @@ function buildTagLine(user: TelegramUserLabel): string {
   return `${user.emoji} ${user.display}`;
 }
 
-async function buildMissedLines(
-  missed: TelegramUserLabel[],
-  usersById: Map<string, User>
-) {
-  const lines: string[] = [];
-  for (const u of missed) {
-    const row = usersById.get(u.userId);
-    const penalty = row
-      ? await getPenaltyStatus(u.userId, row.created_at)
-      : { missedDays: 1 };
-    const n = Math.max(1, penalty.missedDays);
-    const tail =
-      n === 1
-        ? "1й день ⚠️"
-        : n === 2
-          ? "2й день 🟠"
-          : n === 3
-            ? "3й день 🔴 ШТРАФ!"
-            : `${n}й день 🔴`;
-    lines.push(`- ${u.emoji} ${u.display} — ${tail}`);
-  }
-  return lines.join("\n");
-}
-
 export async function GET(request: NextRequest) {
   const adminPassword = request.headers.get("x-admin-password");
   const authHeader = request.headers.get("authorization");
@@ -88,12 +65,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    // Kyiv Friday: skip 22:00 evening — weekly recap is /api/cron/friday-sunset
     const dayOfWeek = kyivDayOfWeekSun0(now);
-    if (dayOfWeek === 5) {
+    if (dayOfWeek === 5 || dayOfWeek === 6) {
       return NextResponse.json({
         ok: true,
-        skipped: "friday - weekly summary sent at sunset instead",
+        skipped: "friday/saturday",
       });
     }
 
@@ -151,7 +127,7 @@ export async function GET(request: NextRequest) {
 
       const missedLines =
         todayMissed.length > 0
-          ? await buildMissedLines(todayMissed, usersById)
+          ? await buildTodayMissedPenaltyLines(todayMissed, usersById)
           : "- (немає)";
 
       const missedBlock = `❌ <b>Не відмітились сьогодні:</b>\n${missedLines}`;

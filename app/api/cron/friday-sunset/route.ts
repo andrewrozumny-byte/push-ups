@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsers } from "@/lib/db";
-import { buildFridayWeeklySabbathMessage } from "@/lib/fridayWeeklySummary";
+import { buildFridayEveningSabbathMessage } from "@/lib/fridayEveningSummary";
 
 async function sendTelegramMessage(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
@@ -48,15 +47,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const users = await getUsers();
-    const text = await buildFridayWeeklySabbathMessage(users, now);
+    const text = await buildFridayEveningSabbathMessage(now);
 
     if (preview) {
       return NextResponse.json({ ok: true, message: text });
     }
 
     await sendTelegramMessage(text);
-    return NextResponse.json({ ok: true, mode: "friday-sunset-weekly" });
+    return NextResponse.json({ ok: true, mode: "friday-sunset-evening" });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Помилка відправки";
     console.error("[Telegram Friday sunset]", message);

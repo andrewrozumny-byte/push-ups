@@ -8,12 +8,15 @@ type ProfileCheckinButtonProps = {
   userId: string; // UUID in DB
   initialCheckedIn: boolean;
   onModalClosed?: () => void; // Fires after successful check-in modal is closed
+  /** Kyiv Saturday: show rest UI, no check-in. */
+  isSaturdayRest?: boolean;
 };
 
 export function ProfileCheckinButton({
   userId,
   initialCheckedIn,
   onModalClosed,
+  isSaturdayRest = false,
 }: ProfileCheckinButtonProps) {
   const [checkedIn, setCheckedIn] = useState(initialCheckedIn);
   const [loading, setLoading] = useState(false);
@@ -71,12 +74,12 @@ export function ProfileCheckinButton({
   };
 
   const handleOpenConfirm = () => {
-    if (checkedIn || loading) return;
+    if (isSaturdayRest || checkedIn || loading) return;
     setShowConfirm(true);
   };
 
   const performCheckin = async () => {
-    if (checkedIn || loading) return;
+    if (isSaturdayRest || checkedIn || loading) return;
     setShowConfirm(false);
     setLoading(true);
     try {
@@ -112,6 +115,23 @@ export function ProfileCheckinButton({
       shouldRefetchAfterCloseRef.current = false;
       onModalClosed?.();
     }
+  }
+
+  if (isSaturdayRest) {
+    return (
+      <div className="space-y-2">
+        <div
+          className="w-full rounded-2xl border border-white/10 bg-gray-800 px-4 py-6 sm:py-7 text-center font-extrabold text-gray-500 cursor-not-allowed select-none"
+          role="status"
+          aria-label="Субота — день відпочинку"
+        >
+          🕊 Субота — день відпочинку
+        </div>
+        <p className="text-center text-sm text-white/60">
+          Повертайся завтра 😊
+        </p>
+      </div>
+    );
   }
 
   return (

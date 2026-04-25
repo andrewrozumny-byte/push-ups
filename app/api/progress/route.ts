@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCheckinsByUser, getUserById } from "@/lib/db";
 import { getPenaltyStatus } from "@/lib/penalties";
-import { diffCalendarDays, getKyivDate } from "@/lib/kyivDate";
+import {
+  countSaturdaysBetweenInclusive,
+  diffCalendarDays,
+  getKyivDate,
+} from "@/lib/kyivDate";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -30,6 +34,19 @@ export async function GET(request: NextRequest) {
       ? Math.max(1, daysSinceRegistrationRaw)
       : 1;
 
+    const saturdaysInWindow = countSaturdaysBetweenInclusive(
+      createdStr,
+      todayStr
+    );
+    const totalPossibleDays = Math.max(
+      1,
+      daysSinceRegistration - saturdaysInWindow
+    );
+
+    const completedDays = checkins.filter(
+      (c) => c.date >= createdStr && c.date <= todayStr
+    ).length;
+
     // For users registered less than 3 days ago, don't show progress percent.
     const progressPct =
       daysSinceRegistration < 3
@@ -38,7 +55,7 @@ export async function GET(request: NextRequest) {
             0,
             Math.min(
               100,
-              Math.round((checkins.length / daysSinceRegistration) * 100)
+              Math.round((completedDays / totalPossibleDays) * 100)
             )
           );
 

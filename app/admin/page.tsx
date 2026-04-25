@@ -1200,7 +1200,7 @@ export default function AdminPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <div className="text-xs text-white/60">
-                  📊 Тижневий звіт (п&apos;ятниця)
+                  🌇 Вечірній підсумок (п&apos;ятниця, захід сонця)
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -1227,7 +1227,42 @@ export default function AdminPage() {
                     }
                     onClick={() => void runFridaySunsetTelegramCronPreview()}
                   >
-                    Переглянути тижневий звіт
+                    Переглянути (п&apos;ятниця)
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-white/60">
+                  🌆 Підсумок тижня (субота, захід сонця)
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-center"
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
+                    onClick={() => runTelegramCronTest("/api/cron/saturday-sunset")}
+                  >
+                    Надіслати
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0 justify-center bg-white/10 text-white hover:bg-white/15 px-2"
+                    disabled={
+                      telegramTestLoading ||
+                      telegramPreviewLoading ||
+                      telegramCustomLoading
+                    }
+                    onClick={() =>
+                      runTelegramCronPreview("/api/cron/saturday-sunset")
+                    }
+                  >
+                    Переглянути (субота)
                   </Button>
                 </div>
               </div>
