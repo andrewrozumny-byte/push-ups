@@ -7,6 +7,7 @@ import {
   endOfWeekSundayKyiv,
   formatKyivYmdLongUk,
   getPushupsNormForYmd,
+  kyivDayOfWeekSun0ForYmd,
   startOfWeekMondayKyiv,
 } from "@/lib/kyivDate";
 
@@ -90,10 +91,14 @@ export function ProfileProgressGrid({
                 dateStr
               );
               const isFuture = dateStr > todayStr;
+              const isSaturdayBonus = kyivDayOfWeekSun0ForYmd(dateStr) === 6;
               const expected = getPushupsNormForYmd(dateStr);
               const doneCount = checkinByDate[dateStr];
-              const pushupsLabel =
-                doneCount != null
+              const pushupsLabel = isSaturdayBonus
+                ? checked
+                  ? "Субота: відпочинок (тижневий бонус)"
+                  : "Субота: відпочинок"
+                : doneCount != null
                   ? `${doneCount} віджимань (виконано)`
                   : `Норма: ${expected} віджимань`;
 
@@ -103,9 +108,13 @@ export function ProfileProgressGrid({
                 "h-3.5 w-3.5 rounded-[3px] border transition-colors",
                 isFuture
                   ? "border-[#38bdf8]/30 bg-[#38bdf8]/40"
-                  : checked
-                    ? "border-[#22c55e]/70 bg-[#22c55e]"
-                    : "border-white/10 bg-white/10"
+                  : isSaturdayBonus
+                    ? checked
+                      ? "border-sky-400/70 bg-sky-400/40"
+                      : "border-sky-400/20 bg-sky-400/10"
+                    : checked
+                      ? "border-[#22c55e]/70 bg-[#22c55e]"
+                      : "border-white/10 bg-white/10"
               );
 
               return (

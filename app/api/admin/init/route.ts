@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { initDb } from "@/lib/db";
+import {
+  backfillSaturdayBonusCheckins,
+  getKyivDate,
+  initDb,
+  pushupsStartYmd,
+} from "@/lib/db";
 
 const ADMIN_COOKIE = "pushups_admin";
 
@@ -12,7 +17,15 @@ export async function POST() {
   }
   try {
     await initDb();
-    return NextResponse.json({ ok: true, message: "Таблиці створено" });
+    const fromYmd = pushupsStartYmd();
+    const toYmd = getKyivDate();
+    const inserted = await backfillSaturdayBonusCheckins(fromYmd, toYmd);
+    return NextResponse.json({
+      ok: true,
+      message: "Таблиці створено",
+      saturdayBonusInserted: inserted,
+      range: { fromYmd, toYmd },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Помилка ініціалізації";
     return NextResponse.json({ error: message }, { status: 500 });

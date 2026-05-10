@@ -9,9 +9,11 @@ import {
 
 import { getPenaltyStatus as getPenalty } from "@/lib/penalties";
 import {
+  addCalendarDays,
   countSaturdaysBetweenInclusive,
   diffCalendarDays,
   getKyivDate,
+  kyivDayOfWeekSun0ForYmd,
 } from "@/lib/kyivDate";
 import { isSaturday } from "@/lib/sabbath";
 
@@ -47,7 +49,16 @@ export default async function ProfilePage({
         cur = 1;
       } else {
         const gap = diffCalendarDays(prev, d);
-        cur = gap === 1 ? cur + 1 : 1;
+        if (gap === 1) {
+          cur = cur + 1;
+        } else if (gap === 2) {
+          // If the missing middle day is Saturday (rest/bonus), keep the streak.
+          // This protects "best streak" even before Saturday bonuses are backfilled.
+          const missingYmd = addCalendarDays(prev, 1);
+          cur = kyivDayOfWeekSun0ForYmd(missingYmd) === 6 ? cur + 1 : 1;
+        } else {
+          cur = 1;
+        }
       }
       best = Math.max(best, cur);
       prev = d;
@@ -74,7 +85,10 @@ export default async function ProfilePage({
   );
 
   const completedDays = checkins.filter(
-    (c) => c.date >= createdStr && c.date <= todayStr
+    (c) =>
+      c.date >= createdStr &&
+      c.date <= todayStr &&
+      kyivDayOfWeekSun0ForYmd(c.date) !== 6
   ).length;
 
   const progressPct =

@@ -24,6 +24,7 @@ export type User = {
   emoji: string;
   slug: string;
   telegram_username: string | null;
+  is_frozen: boolean;
   created_at: Date;
 };
 
@@ -138,6 +139,11 @@ export async function initDb() {
   `);
 
   await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS checkins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -152,6 +158,9 @@ export async function initDb() {
     `CREATE INDEX IF NOT EXISTS idx_checkins_user_date ON checkins(user_id, date)`
   );
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_slug ON users(slug)`);
+
+  // Best-effort safety net: ensure "paused" users do not show up anywhere.
+  await autoFreezeKnownUsers().catch(() => {});
 }
 
 type UserRow = {
@@ -160,6 +169,7 @@ type UserRow = {
   emoji: string;
   slug: string;
   telegram_username: unknown;
+  is_frozen: boolean;
   created_at: unknown;
   checkin_token?: unknown;
 };
@@ -191,9 +201,96 @@ type UsersWithStatsRow = {
   streak_days: number;
 };
 
+function normalizeSlugOrName(v: string): string {
+  return v
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/ё/g, "е");
+}
+
+/**
+ * Keep specific participants hidden everywhere (like frozen users).
+ * Safety net for known users that should not appear in group messages.
+ */
+export async function autoFreezeKnownUsers(): Promise<number> {
+  const nameCandidates = [
+    "серега",
+    "серёга",
+    "сергей",
+    "сергій",
+    "serega",
+    "sergey",
+  ].map(normalizeSlugOrName);
+
+  const slugCandidates = [
+    "serega",
+    "sergey",
+    "seryoha",
+    "seriozha",
+    "serezha",
+    "seroga",
+  ].map(normalizeSlugOrName);
+
+  const res = await query(
+    `UPDATE users
+     SET is_frozen = TRUE
+     WHERE is_frozen = FALSE
+       AND (
+         lower(replace(name, 'ё', 'е')) = ANY($1::text[])
+         OR lower(slug) = ANY($2::text[])
+       )`,
+    [nameCandidates, slugCandidates]
+  );
+  return res.rowCount ?? 0;
+}
+
+export async function freezeUserBySlug(slug: string): Promise<boolean> {
+  const normalized = normalizeSlugOrName(slug);
+  if (!normalized) return false;
+  const res = await query(
+    `UPDATE users SET is_frozen = TRUE WHERE lower(slug) = $1`,
+    [normalized]
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+/**
+ * Saturday is a rest day (Sabbath). We still mark it for everyone as a weekly bonus
+ * so the calendar does not show gaps and streak logic stays consistent.
+ *
+ * Inserts "bonus check-ins" with pushups_count = 0 for Kyiv Saturdays.
+ */
+export async function backfillSaturdayBonusCheckins(
+  fromYmd: string,
+  toYmd: string
+): Promise<number> {
+  const res = await query(
+    `
+    INSERT INTO checkins (user_id, date, pushups_count)
+    SELECT
+      u.id AS user_id,
+      d::date AS date,
+      0 AS pushups_count
+    FROM users u
+    CROSS JOIN generate_series($1::date, $2::date, interval '1 day') d
+    WHERE u.is_frozen = FALSE
+      AND extract(dow from d) = 6
+      AND d::date >= ((u.created_at AT TIME ZONE 'Europe/Kyiv')::date)
+    ON CONFLICT (user_id, date) DO NOTHING
+    `,
+    [fromYmd, toYmd]
+  );
+  return res.rowCount ?? 0;
+}
+
 export async function getUsers(): Promise<User[]> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users ORDER BY name`
+    `SELECT id, name, emoji, slug, telegram_username, is_frozen, created_at
+     FROM users
+     WHERE is_frozen = FALSE
+     ORDER BY name`
   );
   return res.rows.map((row) => ({
     id: row.id,
@@ -202,13 +299,15 @@ export async function getUsers(): Promise<User[]> {
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   }));
 }
 
 export async function getUserById(id: string): Promise<User | null> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users WHERE id = $1`,
+    `SELECT id, name, emoji, slug, telegram_username, is_frozen, created_at
+     FROM users WHERE id = $1`,
     [id]
   );
   const row = res.rows[0];
@@ -220,13 +319,15 @@ export async function getUserById(id: string): Promise<User | null> {
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   };
 }
 
 export async function getUserBySlug(slug: string): Promise<User | null> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, telegram_username, created_at FROM users WHERE slug = $1`,
+    `SELECT id, name, emoji, slug, telegram_username, is_frozen, created_at
+     FROM users WHERE slug = $1`,
     [slug]
   );
   const row = res.rows[0];
@@ -238,6 +339,7 @@ export async function getUserBySlug(slug: string): Promise<User | null> {
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   };
 }
@@ -254,8 +356,8 @@ export async function getUserBySlugAndToken(
   if (!trimmedSlug || !trimmedToken) return null;
 
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, telegram_username, created_at, checkin_token
-     FROM users WHERE slug = $1`,
+    `SELECT id, name, emoji, slug, telegram_username, is_frozen, created_at, checkin_token
+     FROM users WHERE slug = $1 AND is_frozen = FALSE`,
     [trimmedSlug]
   );
   const row = res.rows[0];
@@ -284,6 +386,7 @@ export async function getUserBySlugAndToken(
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   };
 }
@@ -293,8 +396,9 @@ export type UserWithCheckinToken = User & { checkin_token: string | null };
 /** For server/cron only — includes magic link token (never expose on public dashboard API). */
 export async function getUsersWithCheckinTokens(): Promise<UserWithCheckinToken[]> {
   const res = await query<UserRow>(
-    `SELECT id, name, emoji, slug, telegram_username, created_at, checkin_token
+    `SELECT id, name, emoji, slug, telegram_username, is_frozen, created_at, checkin_token
      FROM users
+     WHERE is_frozen = FALSE
      ORDER BY name`
   );
   return res.rows.map((row) => ({
@@ -304,6 +408,7 @@ export async function getUsersWithCheckinTokens(): Promise<UserWithCheckinToken[
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
     checkin_token:
       row.checkin_token != null ? String(row.checkin_token) : null,
@@ -322,9 +427,9 @@ export async function createUser(data: {
     (data.telegram_username ?? null)?.toString().trim().replace(/^@/, "") ??
     null;
   const res = await query<UserRow>(
-    `INSERT INTO users (name, emoji, slug, telegram_username, checkin_token)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, name, emoji, slug, telegram_username, created_at`,
+    `INSERT INTO users (name, emoji, slug, telegram_username, checkin_token, is_frozen)
+     VALUES ($1, $2, $3, $4, $5, FALSE)
+     RETURNING id, name, emoji, slug, telegram_username, is_frozen, created_at`,
     [data.name, emoji, data.slug, telegram_username, data.checkin_token]
   );
   const row = res.rows[0];
@@ -338,6 +443,7 @@ export async function createUser(data: {
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   };
 }
@@ -362,7 +468,7 @@ export async function updateUser(
          slug = $3,
          telegram_username = $4
      WHERE id = $5
-     RETURNING id, name, emoji, slug, telegram_username, created_at`,
+     RETURNING id, name, emoji, slug, telegram_username, is_frozen, created_at`,
     [data.name, data.emoji, data.slug, telegram_username, id]
   );
 
@@ -376,6 +482,7 @@ export async function updateUser(
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: row.is_frozen,
     created_at: toDate(row.created_at),
   };
 }
@@ -489,6 +596,7 @@ export async function getProgressAll(): Promise<
       c.pushups_count
      FROM checkins c
      JOIN users u ON u.id = c.user_id
+     WHERE u.is_frozen = FALSE
      ORDER BY c.date DESC, u.name`
   );
   return res.rows;
@@ -519,6 +627,7 @@ export async function getUsersWithStats(): Promise<UserWithStats[]> {
     FROM users u
     LEFT JOIN totals t ON t.user_id = u.id
     LEFT JOIN last_checkin lc ON lc.user_id = u.id
+    WHERE u.is_frozen = FALSE
     ORDER BY u.name`
   );
 
@@ -529,6 +638,7 @@ export async function getUsersWithStats(): Promise<UserWithStats[]> {
     slug: row.slug,
     telegram_username:
       row.telegram_username != null ? String(row.telegram_username) : null,
+    is_frozen: false,
     created_at: toDate(row.created_at),
     total_checkins: row.total_checkins,
     streak_days: row.streak_days,

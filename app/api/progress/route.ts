@@ -5,6 +5,7 @@ import {
   countSaturdaysBetweenInclusive,
   diffCalendarDays,
   getKyivDate,
+  kyivDayOfWeekSun0ForYmd,
 } from "@/lib/kyivDate";
 
 export async function GET(request: NextRequest) {
@@ -44,7 +45,10 @@ export async function GET(request: NextRequest) {
     );
 
     const completedDays = checkins.filter(
-      (c) => c.date >= createdStr && c.date <= todayStr
+      (c) =>
+        c.date >= createdStr &&
+        c.date <= todayStr &&
+        kyivDayOfWeekSun0ForYmd(c.date) !== 6
     ).length;
 
     // For users registered less than 3 days ago, don't show progress percent.

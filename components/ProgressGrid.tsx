@@ -8,6 +8,7 @@ import {
   getKyivDate,
   getPushupsNormForYmd,
   KYIV_TZ,
+  kyivDayOfWeekSun0ForYmd,
   utcInstantForKyivYmd,
 } from "@/lib/kyivDate";
 
@@ -39,7 +40,10 @@ function HoverTooltip({
   dateStr: string;
   pushups: number;
 }) {
-  const line = `${pushups} віджимань`;
+  const line =
+    pushups === 0
+      ? "Субота: відпочинок (тижневий бонус)"
+      : `${pushups} віджимань`;
   return (
     <div
       className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-[min(220px,calc(100vw-2rem))] -translate-x-1/2"
@@ -96,8 +100,11 @@ export function ProgressGrid({
         )}
       >
         {cells.map((cell) => {
-          const pushups = getPushupsNormForYmd(cell.date);
-          const title = `${formatKyivYmdLongUk(cell.date)} — ${pushups} віджимань`;
+          const isSaturdayBonus = kyivDayOfWeekSun0ForYmd(cell.date) === 6;
+          const pushups = isSaturdayBonus ? 0 : getPushupsNormForYmd(cell.date);
+          const title = isSaturdayBonus
+            ? `${formatKyivYmdLongUk(cell.date)} — Субота: відпочинок (тижневий бонус)`
+            : `${formatKyivYmdLongUk(cell.date)} — ${pushups} віджимань`;
           return (
             <div
               key={cell.date}
@@ -110,7 +117,11 @@ export function ProgressGrid({
                 className={cn(
                   "w-full rounded-md border text-center transition-colors",
                   compact ? "p-1 text-[10px]" : "p-2 text-xs",
-                  cell.checked
+                  isSaturdayBonus
+                    ? cell.checked
+                      ? "border-sky-400/70 bg-sky-400/25 text-sky-200"
+                      : "border-sky-400/20 bg-sky-400/10 text-sky-200/70"
+                    : cell.checked
                     ? "border-primary bg-primary/20 text-primary"
                     : "border-muted bg-muted/30 text-muted-foreground"
                 )}

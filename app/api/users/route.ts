@@ -9,7 +9,10 @@ import {
   getPushupsForDate,
   getUsers,
 } from "@/lib/db";
-import { countSaturdaysBetweenInclusive } from "@/lib/kyivDate";
+import {
+  countSaturdaysBetweenInclusive,
+  kyivDayOfWeekSun0ForYmd,
+} from "@/lib/kyivDate";
 import { getPenaltyStatus } from "@/lib/penalties";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +72,10 @@ export async function GET() {
         );
 
         const completedDays = checkins.filter(
-          (c) => c.date >= createdStr && c.date <= todayStr
+          (c) =>
+            c.date >= createdStr &&
+            c.date <= todayStr &&
+            kyivDayOfWeekSun0ForYmd(c.date) !== 6
         ).length;
 
         const progressPct =

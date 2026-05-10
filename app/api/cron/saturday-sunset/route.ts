@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildSaturdayWeeklySabbathMessage } from "@/lib/saturdayWeeklySummary";
+import { backfillSaturdayBonusCheckins } from "@/lib/db";
+import { getKyivDate } from "@/lib/kyivDate";
 
 async function sendTelegramMessage(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
@@ -47,6 +49,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+    // Mark Kyiv Saturday for everyone as a weekly bonus (rest day).
+    const saturdayYmd = getKyivDate(now);
+    await backfillSaturdayBonusCheckins(saturdayYmd, saturdayYmd);
     const text = await buildSaturdayWeeklySabbathMessage(now);
 
     if (preview) {
