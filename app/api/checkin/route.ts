@@ -7,7 +7,6 @@ import {
 } from "@/lib/db";
 import { getRandomReaction } from "@/lib/checkinReactions";
 import { getKyivDate } from "@/lib/kyivDate";
-import { getRandomMotivator } from "@/lib/motivators";
 import { sendTelegramMessage } from "@/lib/telegram";
 
 export async function POST(request: NextRequest) {
@@ -59,18 +58,14 @@ export async function POST(request: NextRequest) {
     }
 
     const checkin = await createCheckin(userId, date);
-    const motivatorObj = getRandomMotivator();
-    const motivator = motivatorObj.source
-      ? `${motivatorObj.text} — ${motivatorObj.source}`
-      : motivatorObj.text;
 
     let reactionName = userName;
     if (!reactionName) {
       const u = await getUserById(userId);
       reactionName = u?.name ?? "Учасник";
     }
+    const reaction = getRandomReaction(reactionName);
     try {
-      const reaction = getRandomReaction(reactionName);
       await sendTelegramMessage(reaction);
     } catch (err) {
       console.error("[checkin] Telegram reaction failed:", err);
@@ -79,7 +74,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       pushups: checkin.pushups_count,
-      motivator,
+      motivator: reaction,
+      reaction,
       emoji: userEmoji,
       name: userName,
       checkin: {
